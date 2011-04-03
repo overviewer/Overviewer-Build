@@ -24,14 +24,14 @@ from boto.s3.key import Key
 conn = S3Connection('1QWAVYJPN7K868CEDZ82')
 bucket = conn.get_bucket("minecraft-overviewer")
 
-gm_worker = gearman.GearmanWorker(["192.168.1.4:9092"])
+gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def build(worker, job):
     print "got a job!"
 
     worker.send_job_status(job, 1, 7)
 
-    b = builder.WindowsBuilder()
+    b = builder.WindowsBuilder(python=r"C:\python26_x64\python.exe")
     worker.send_job_status(job, 2, 7)
 
     b.fetch(checkout="dtt-c-render")
