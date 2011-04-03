@@ -52,16 +52,17 @@ class Zipper(object):
     "Zips up stuff"
     pass
 
+logger = logging.getLogger("Builder")
+logger.setLevel(logging.DEBUG)
+logging_handler = logging.StreamHandler()
+logger.addHandler(logging_handler)
+
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging_handler.setFormatter(formatter)
 
 class Builder(object):
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger("Builder")
-        self.logger.setLevel(logging.DEBUG)
-        self.logging_handler = logging.StreamHandler()
-        self.logger.addHandler(self.logging_handler)
-
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        self.logging_handler.setFormatter(formatter)
 
         self.remote_repo = kwargs.get("repo", "git://github.com/agrif/Minecraft-Overviewer.git")
         self.temp_area = tempfile.mkdtemp(dir="c:\\temp", prefix="mco_build_temp")
