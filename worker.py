@@ -4,6 +4,8 @@ import traceback
 import os
 import shutil
 
+this_plat = builder.this_plat
+
 try:
     import gearman
 except ImportError:
@@ -36,7 +38,7 @@ def build(worker, job):
     worker.send_job_status(job, 3, 7)
 
     desc = b.getDesc()
-    zipname = "win86_32-%s.zip" % desc
+    zipname = "%s-%s.zip" % (this_plat, desc)
     print "zipname -->%s<--" % zipname
 
     k = bucket.get_key(zipname)
@@ -84,9 +86,10 @@ def build(worker, job):
 
     return archive
 
-gm_worker.set_client_id("win86_32_worker")
-gm_worker.register_task("build_win86_32", build)
+gm_worker.set_client_id("%s_worker" % this_plat)
+gm_worker.register_task("build_%s" % this_plat, build)
 
+print "Starting worker for %s" % this_plat
 gm_worker.work()
 
 sys.exit(0)

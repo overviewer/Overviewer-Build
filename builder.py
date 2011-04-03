@@ -6,6 +6,24 @@ import logging
 import traceback
 import time
 import stat
+import platform
+
+if platform.system() == 'Windows':
+    if "32bit" in platform.architecture():
+        this_plat = "win86_32"
+    elif "64bit" in platform.architecture():
+        this_plat = "win86_64"
+    else:
+        raise Exception("what kind of platform is this!")
+elif platform.system() == "Linux":
+    if "32bit" in platform.architecture():
+        this_plat = "lnx86_32"
+    elif "64bit" in platform.architecture():
+        this_plat = "lnx86_64"
+    else:
+        raise Exception("what kind of platform is this!")
+else:
+    raise Exception("Sorry, no support yet")
 
 
 def findExe(exe, path=None):
