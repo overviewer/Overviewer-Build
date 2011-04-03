@@ -3,6 +3,10 @@ import sys
 import traceback
 import os
 import shutil
+import hashlib
+import hmac
+import cPickle
+import time
 
 this_plat = builder.this_plat
 
@@ -28,13 +32,42 @@ gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def build(worker, job):
     print "got a job!"
-
     worker.send_job_status(job, 1, 8)
+    if len(job.data) < 33:
+        print "ERROR:  job data is not valid.  too short"
+        return "ERROR:  job data is not valid.  too short"
 
-    if this_plat == "win86_64":
-        b = builder.WindowsBuilder(python=r"C:\python26_x64\python.exe")
-    elif this_plat == "win86_32":
-        b = builder.WindowsBuilder(python=r"C:\python26\python.exe")
+    received_h = job.data[0:32]
+    # calc hmac of the resulting data
+    data = job.data[32:]
+    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    if (h.digest() != received_h):
+        print "ERROR:  job data is not valid.  bad signature"
+        return "ERROR:  job data is not valid.  bad signature"
+
+    print "Data is valid, doing to depickle"
+    try:
+        depick = cPickle.loads(data)
+
+    except:
+        return "ERROR: can't depickle"
+
+    if type(depick) != dict:
+        return "ERROR: type should be dictionary"
+
+
+    defaults = dict(repo="git://github.com/agrif/Minecraft-Overviewer.git",
+                    checkout="dtt-c-render",
+                    python=sys.executable)
+
+    defaults.update(depick)
+    print defaults
+
+    return "OK!"
+        
+    
+
+    b = builder.WindowsBuilder(**defaults)
     worker.send_job_status(job, 2, 8)
 
     b.fetch(checkout="dtt-c-render")
