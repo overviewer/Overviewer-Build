@@ -72,6 +72,8 @@ class Builder(object):
         self.zipper = kwargs.get("zip", "zip")
     
         self.logger.debug("making temp_area: %s", self.temp_area)
+	os.environ['DISTUTILS_USE_SDK'] = "1"
+	os.environ['MSSdk'] = "1"
     def __del__(self):
         try:
             self.logger.debug("deleting temp_area: %s", self.temp_area)
@@ -90,7 +92,8 @@ class Builder(object):
         
     def fetch(self, checkout=None):
         "Clones a remote repo into a local directory"
-        cmd = ["git","clone", self.remote_repo, self.temp_area]
+        cmd = ["git.cmd","clone", self.remote_repo, self.temp_area]
+	print cmd
         p = subprocess.Popen(cmd)
         p.wait()
         if p.returncode != 0:
@@ -100,7 +103,7 @@ class Builder(object):
         self.logger.info("Cloned.")
 
         if checkout:
-            cmd = ["git", "checkout", checkout]
+            cmd = ["git.cmd", "checkout", checkout]
             p = subprocess.Popen(cmd)
             p.wait()
             if p.returncode != 0:
@@ -110,7 +113,7 @@ class Builder(object):
         return 0
 
     def getDesc(self):
-        cmd = ["git", "describe", "--tags"]
+        cmd = ["git.cmd", "describe", "--tags"]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
