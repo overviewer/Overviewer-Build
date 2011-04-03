@@ -29,13 +29,16 @@ gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 def build(worker, job):
     print "got a job!"
 
-    worker.send_job_status(job, 1, 7)
+    worker.send_job_status(job, 1, 8)
 
-    b = builder.WindowsBuilder(python=r"C:\python26_x64\python.exe")
-    worker.send_job_status(job, 2, 7)
+    if this_plat == "win86_64":
+        b = builder.WindowsBuilder(python=r"C:\python26_x64\python.exe")
+    elif this_plat == "win86_32":
+        b = builder.WindowsBuilder(python=r"C:\python26\python.exe")
+    worker.send_job_status(job, 2, 8)
 
     b.fetch(checkout="dtt-c-render")
-    worker.send_job_status(job, 3, 7)
+    worker.send_job_status(job, 3, 8)
 
     desc = b.getDesc()
     zipname = "%s-%s.zip" % (this_plat, desc)
@@ -51,16 +54,17 @@ def build(worker, job):
     
 
     b.build(phase="clean")
-    worker.send_job_status(job, 4, 7)
+    worker.send_job_status(job, 4, 8)
 
     b.build(phase="build")
-    worker.send_job_status(job, 5, 7)
+    worker.send_job_status(job, 5, 8)
 
     b.build(phase="py2exe")
-    worker.send_job_status(job, 6, 7)
+    worker.send_job_status(job, 6, 8)
 
 
     archive= b.zip(root="dist", archive=zipname)
+    worker.send_job_status(job, 7, 8)
     print "archive: -->%s<--" % archive
     try:
         print "trying to shcopy"
@@ -83,6 +87,7 @@ def build(worker, job):
     except:
         print "failed to upload to S3"
         traceback.print_exc()
+        return "Error: Failed to upload to S3"
 
     return archive
 
