@@ -63,14 +63,12 @@ def build(worker, job):
     defaults.update(depick)
     print defaults
 
-    return "OK!"
-        
     
 
     b = builder.WindowsBuilder(**defaults)
     worker.send_job_status(job, 2, 8)
 
-    b.fetch(checkout="dtt-c-render")
+    b.fetch(checkout=defaults['checkout'])
     worker.send_job_status(job, 3, 8)
 
     desc = b.getDesc()
