@@ -30,30 +30,47 @@ bucket = conn.get_bucket("minecraft-overviewer")
 
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
+def signAndPickle(d):
+    data = cPickle.dumps(d)
+    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    return h.digest() + data
+
 def build(worker, job):
     print "got a job!"
     worker.send_job_status(job, 1, 8)
+    result = dict(status=None)
+
     if len(job.data) < 33:
+        result['status'] = 'ERROR'
         print "ERROR:  job data is not valid.  too short"
-        return "ERROR:  job data is not valid.  too short"
+        result['msg'] = "ERROR:  job data is not valid.  too short"
+        return signAndPickle(result)
 
     received_h = job.data[0:32]
     # calc hmac of the resulting data
     data = job.data[32:]
     h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
     if (h.digest() != received_h):
+        result['status'] = 'ERROR'
         print "ERROR:  job data is not valid.  bad signature"
-        return "ERROR:  job data is not valid.  bad signature"
+        result['msg'] = "ERROR:  job data is not valid.  bad signature"
+        return signAndPickle(result)
 
     print "Data is valid, doing to depickle"
     try:
         depick = cPickle.loads(data)
 
-    except:
-        return "ERROR: can't depickle"
+    except: 
+        result['status'] = 'ERROR'
+        result['msg'] = "ERROR: can't depickle"
+        print "ERROR: can't depickle"
+        return signAndPickle(result)
 
     if type(depick) != dict:
-        return "ERROR: type should be dictionary"
+        result['status'] = 'ERROR'
+        result['msg'] = "ERROR: input must be a dictionary"
+        print "ERROR: input must be a dictionary"
+        return signAndPickle(result)
 
 
     defaults = dict(repo="git://github.com/agrif/Minecraft-Overviewer.git",
@@ -77,8 +94,11 @@ def build(worker, job):
 
     k = bucket.get_key(zipname)
     if k:
+        result['status'] = 'SUCCESS'
+        result['built'] = False
         print "found a copy already!"
-        return "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        return signAndPickle(result)
 
     # before we take the time to build, first see if a copy of this
     # already exists on S3:
@@ -113,22 +133,29 @@ def build(worker, job):
         k.change_storage_class("REDUCED_REDUNDANCY")
         k.make_public()
         #url = k.generate_url(86400)
-        return "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['status'] = 'SUCCESS'
+        result['built'] = True
+        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        return signAndPickle(result)
 
     except:
         print "failed to upload to S3"
         traceback.print_exc()
-        return "Error: Failed to upload to S3"
+        result['status'] = 'ERROR'
+        result['msg'] = "ERROR: failed to upload to S3"
+        return signAndPickle(result)
 
+    print "\n\n--------\nBuild complete\n\n"
     return archive
 
-gm_worker.set_client_id("%s_worker" % this_plat)
-gm_worker.register_task("build_%s" % this_plat, build)
+if __name__ == "__main__":
+    gm_worker.set_client_id("%s_worker" % this_plat)
+    gm_worker.register_task("build_%s" % this_plat, build)
 
-print "Starting worker for %s" % this_plat
-gm_worker.work()
+    print "Starting worker for %s" % this_plat
+    gm_worker.work()
 
-sys.exit(0)
+    sys.exit(0)
 
 
 
