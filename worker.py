@@ -35,6 +35,23 @@ def signAndPickle(d):
     h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
     return h.digest() + data
 
+def uploadLogs(b, result):
+    b.close_logs()
+    now = time.strftime("%Y_%m_%d_%H:%M:%S")
+    err_log = "build_logs/%s.stderr.txt" % now
+    k = bucket.new_key(err_log)
+    k.set_contents_from_filename(b.stderr_log[1])
+    k.change_storage_class("REDUCED_REDUNDANCY")
+    k.make_public()
+    result['build_log_stderr'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % err_log
+    
+    out_log = "build_logs/%s.stdout.txt" % now
+    k = bucket.new_key(out_log)
+    k.set_contents_from_filename(b.stdout_log[1])
+    k.change_storage_class("REDUCED_REDUNDANCY")
+    k.make_public()
+    result['build_log_stdout'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % out_log
+
 def build(worker, job):
     print "got a job!"
     worker.send_job_status(job, 1, 8)
@@ -85,8 +102,15 @@ def build(worker, job):
     b = builder.WindowsBuilder(**defaults)
     worker.send_job_status(job, 2, 8)
 
-    b.fetch(checkout=defaults['checkout'])
-    worker.send_job_status(job, 3, 8)
+    try:
+        b.fetch(checkout=defaults['checkout'])
+        worker.send_job_status(job, 3, 8)
+    except:
+        result['status'] = 'ERROR'
+        result['msg'] = 'Error in either the clone or the checkout'
+        uploadLogs(b, result) 
+        return signAndPickle(result)
+
 
     desc = b.getDesc()
     zipname = "%s-%s.zip" % (this_plat, desc)
@@ -98,20 +122,30 @@ def build(worker, job):
         result['built'] = False
         print "found a copy already!"
         result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        uploadLogs(b, result) 
         return signAndPickle(result)
 
     # before we take the time to build, first see if a copy of this
     # already exists on S3:
     
+    try:
+        b.build(phase="clean")
+        worker.send_job_status(job, 4, 8)
 
-    b.build(phase="clean")
-    worker.send_job_status(job, 4, 8)
+        b.build(phase="build")
+        worker.send_job_status(job, 5, 8)
 
-    b.build(phase="build")
-    worker.send_job_status(job, 5, 8)
+        b.build(phase="py2exe")
+        worker.send_job_status(job, 6, 8)
+    except:
+        print "something failed"
+        result['status'] = 'ERROR'
+        result['msg'] = "ERROR: build failed.  Check the build logs for info"
+        uploadLogs(b, result) 
+        return signAndPickle(result)
+        
+        
 
-    b.build(phase="py2exe")
-    worker.send_job_status(job, 6, 8)
 
 
     archive= b.zip(root="dist", archive=zipname)
@@ -136,6 +170,7 @@ def build(worker, job):
         result['status'] = 'SUCCESS'
         result['built'] = True
         result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        uploadLogs(b, result) 
         return signAndPickle(result)
 
     except:
@@ -152,8 +187,12 @@ if __name__ == "__main__":
     gm_worker.set_client_id("%s_worker" % this_plat)
     gm_worker.register_task("build_%s" % this_plat, build)
 
-    print "Starting worker for %s" % this_plat
-    gm_worker.work()
+    while(1):
+        print "Starting worker for %s" % this_plat
+        try:
+            gm_worker.work()
+        except gearman.errors.ServerUnavailable:
+            print "Server disconnected.  Trying again"
 
     sys.exit(0)
 

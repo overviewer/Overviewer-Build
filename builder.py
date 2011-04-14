@@ -74,7 +74,13 @@ class Builder(object):
         self.logger.debug("making temp_area: %s", self.temp_area)
         os.environ['DISTUTILS_USE_SDK'] = "1"
         os.environ['MSSdk'] = "1"
+
+        self.stderr_log = tempfile.mkstemp(dir="c:\\temp", prefix="mco_log_")
+        self.stdout_log = tempfile.mkstemp(dir="c:\\temp", prefix="mco_log_")
+        
     def __del__(self):
+        #os.close(self.stderr_log[0])
+        #os.close(self.stdout_log[0])
         try:
             self.logger.debug("deleting temp_area: %s", self.temp_area)
             os.chdir("\\")
@@ -88,13 +94,18 @@ class Builder(object):
                 shutil.rmtree(self.temp_area)
             except:
                 print "Failed again!!!"
+    def close_logs(self):
+        os.close(self.stderr_log[0])
+        os.close(self.stdout_log[0])
         
         
     def fetch(self, checkout=None):
         "Clones a remote repo into a local directory"
         cmd = ["git.cmd","clone", self.remote_repo, self.temp_area]
+        os.write(self.stdout_log[0], "> [clone]: %s\n" % cmd)
+        os.write(self.stderr_log[0], "> [clone]: %s\n" % cmd)
         print cmd
-        p = subprocess.Popen(cmd)
+        p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
         p.wait()
         if p.returncode != 0:
             self.logger.error("Error fetching")
@@ -104,8 +115,10 @@ class Builder(object):
 
         if checkout:
             cmd = ["git.cmd", "checkout", checkout]
+            os.write(self.stdout_log[0], "> [checkout]: %s\n" % cmd)
+            os.write(self.stderr_log[0], "> [checkout]: %s\n" % cmd)
             print cmd
-            p = subprocess.Popen(cmd)
+            p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
             p.wait()
             if p.returncode != 0:
                 self.logger.error("Failed to checkout %s", checkout)
@@ -127,7 +140,9 @@ class Builder(object):
         print "old_cwd: ", old_cwd
         os.chdir(root)
         cmd = [self.zipper, "a", archive, "."]
-        p = subprocess.Popen(cmd)
+        os.write(self.stdout_log[0], "> [zip]: %s\n" % cmd)
+        os.write(self.stderr_log[0], "> [zip]: %s\n" % cmd)
+        p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
         p.wait()
         print "returncode: ", p.returncode
         os.chdir(old_cwd)
@@ -168,7 +183,9 @@ class WindowsBuilder(Builder):
 
     def build(self, phase="build"):
         cmd = [self.python, "setup.py", phase]
-        p = subprocess.Popen(cmd)
+        os.write(self.stdout_log[0], "> [build]: %s\n" % cmd)
+        os.write(self.stderr_log[0], "> [build]: %s\n" % cmd)
+        p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
         p.wait()
         if p.returncode != 0:
             self.logger.error("Failed to build phase %s", phase)
