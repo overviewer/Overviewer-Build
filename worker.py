@@ -40,14 +40,14 @@ def uploadLogs(b, result):
     now = time.strftime("%Y_%m_%d_%H:%M:%S")
     err_log = "build_logs/%s.stderr.txt" % now
     k = bucket.new_key(err_log)
-    k.set_contents_from_filename(b.stderr_log[1])
+    k.set_contents_from_filename(b.stderr_log[1], headers={'Content-Type': 'text/plain'})
     k.change_storage_class("REDUCED_REDUNDANCY")
     k.make_public()
     result['build_log_stderr'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % err_log
     
     out_log = "build_logs/%s.stdout.txt" % now
     k = bucket.new_key(out_log)
-    k.set_contents_from_filename(b.stdout_log[1])
+    k.set_contents_from_filename(b.stdout_log[1], headers={'Content-Type': 'text/plain'})
     k.change_storage_class("REDUCED_REDUNDANCY")
     k.make_public()
     result['build_log_stdout'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % out_log
