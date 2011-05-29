@@ -92,26 +92,25 @@ def build(worker, job):
     defaults = depick
     print defaults
 
-    
-
     b = builder.WindowsBuilder(**defaults)
     num_phases = len(b.phases)
     worker.send_job_status(job, 1, 4 + num_phases)
 
-    try:
-        b.fetch(checkout=defaults['checkout'])
-        worker.send_job_status(job, 2, 4 + num_phases)
-    except:
-        result['status'] = 'ERROR'
-        result['msg'] = 'Error in either the clone or the checkout'
-        uploadLogs(b, result) 
-        return signAndPickle(result)
+    if 'checkout' in defaults:
+        try:
+            b.fetch(checkout=defaults['checkout'])
+            worker.send_job_status(job, 2, 4 + num_phases)
+        except:
+            result['status'] = 'ERROR'
+            result['msg'] = 'Error in either the clone or the checkout'
+            uploadLogs(b, result) 
+            return signAndPickle(result)
 
-
-    desc = b.getDesc()
-    zipname = "%s-%s.zip" % (this_plat, desc)
+    zipname = b.filename()
     print "zipname -->%s<--" % zipname
-
+    
+    # before we take the time to build, first see if a copy of this
+    # already exists on S3:
     k = bucket.get_key(zipname)
     if k:
         result['status'] = 'SUCCESS'
@@ -121,9 +120,6 @@ def build(worker, job):
         uploadLogs(b, result) 
         return signAndPickle(result)
 
-    # before we take the time to build, first see if a copy of this
-    # already exists on S3:
-    
     try:
         for i, phase in enumerate(b.phases):
             b.build(phase=phase)
@@ -134,12 +130,9 @@ def build(worker, job):
         result['msg'] = "ERROR: build failed.  Check the build logs for info"
         uploadLogs(b, result) 
         return signAndPickle(result)
-        
-        
 
 
-
-    archive= b.zip(root="dist", archive=zipname)
+    archive = b.package()
     worker.send_job_status(job, 3 + num_phases, 4 + num_phases)
     print "archive: -->%s<--" % archive
     try:
@@ -152,6 +145,7 @@ def build(worker, job):
         traceback.print_exc()
     print "done!"
 
+    # upload
     try:
         k = bucket.new_key(zipname)
         k.set_contents_from_filename(archive)

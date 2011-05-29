@@ -125,10 +125,16 @@ class Builder(object):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
-        
+    
+    # returns the filename on the (eventual) server
+    def filename(self):
+        raise NotYetImplemented()
+    
+    # called for each phase in self.phases
     def build(self, phase="build"):
         raise NotYetImplemented()
     
+    # called after all the phases are done, returns a filename to upload
     def package(self):
         raise NotYetImplemented()
         
@@ -180,7 +186,16 @@ class WindowsBuilder(Builder):
         if p.returncode != 0:
             self.logger.error("Failed to build phase %s", phase)
             raise Exception()
-
+    
+    def filename(self):
+        desc = b.getDesc()
+        zipname = "%s-%s.zip" % (this_plat, desc)
+        return zipname
+    
+    def package(self):
+        zipname = self.filename()
+        return b.zip(root="dist", archive=zipname)
+    
     def zip(self, root, archive):
         old_cwd = os.getcwd()
         print "old_cwd: ", old_cwd
