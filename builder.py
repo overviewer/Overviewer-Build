@@ -19,27 +19,22 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 logging_handler.setFormatter(formatter)
 
 
-if platform.system() == 'Windows':
-    if "32bit" in platform.architecture():
-        this_plat = "win86_32"
-    elif "64bit" in platform.architecture():
-        this_plat = "win86_64"
-    else:
-        raise Exception("what kind of platform is this!")
-elif platform.system() == "Linux":
-    if "32bit" in platform.architecture():
-        this_plat = "lnx86_32"
-    elif "64bit" in platform.architecture():
-        this_plat = "lnx86_64"
-    else:
-        raise Exception("what kind of platform is this!")
-else:
-    raise Exception("Sorry, no support yet")
-
-
 class Builder(object):
     phases = []
     
+    builders = {}
+    @classmethod
+    def register(cls, **kwargs):
+        def sub_register(builder):
+            for key in kwargs:
+                def sub_constructor(*sub_args, **sub_kwargs):
+                    b = builder(*sub_args, **sub_kwargs)
+                    b.platform = key
+                    return b
+                if kwargs[key]:
+                    cls.builders[key] = sub_constructor
+        return sub_register
+        
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger("Builder")
         
@@ -132,7 +127,8 @@ class Builder(object):
     def package(self):
         raise NotYetImplemented()
         
-
+@Builder.register(win86_32 = platform.system() == 'Windows' and '32bit' in platform.architecture(),
+                  win86_64 = platform.system() == 'Windows' and '64bit' in platform.architecture())
 class WindowsBuilder(Builder):
     phases = ["clean", "build", "py2exe"]
     
@@ -172,7 +168,7 @@ class WindowsBuilder(Builder):
         
     def filename(self):
         desc = b.getDesc()
-        zipname = "%s-%s.zip" % (this_plat, desc)
+        zipname = "%s-%s.zip" % (self.platform, desc)
         return zipname
     
     def package(self):

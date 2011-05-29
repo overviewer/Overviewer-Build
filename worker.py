@@ -8,8 +8,6 @@ import hmac
 import cPickle
 import time
 
-this_plat = builder.this_plat
-
 try:
     import gearman
 except ImportError:
@@ -92,7 +90,8 @@ def build(worker, job):
     defaults = depick
     print defaults
 
-    b = builder.WindowsBuilder(**defaults)
+    platform = job.task.split("_", 1)[1]
+    b = builder.Builder.builders[platform](**defaults)
     num_phases = len(b.phases)
     worker.send_job_status(job, 1, 4 + num_phases)
 
@@ -135,14 +134,6 @@ def build(worker, job):
     archive = b.package()
     worker.send_job_status(job, 3 + num_phases, 4 + num_phases)
     print "archive: -->%s<--" % archive
-    try:
-        print "trying to shcopy"
-        print "exists:" , os.path.exists(archive)
-        shutil.copy(archive, "c:\\devel\\")
-        print "copy was OK"
-    except:
-        print "error in the copy!"
-        traceback.print_exc()
     print "done!"
 
     # upload
@@ -166,8 +157,14 @@ def build(worker, job):
         return signAndPickle(result)
 
 if __name__ == "__main__":
+    if not builder.Builder.builders:
+        print "no supported builders found, exiting..."
+        sys.exit(1)
+    
+    this_plat = builder.Builder.builders.keys()[0]
     gm_worker.set_client_id("%s_worker" % this_plat)
-    gm_worker.register_task("build_%s" % this_plat, build)
+    for platform in builder.Builder.builders:
+        gm_worker.register_task("build_%s" % platform, build)
 
     while(1):
         print "Starting worker for %s" % this_plat
