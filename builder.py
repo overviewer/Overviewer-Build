@@ -92,31 +92,25 @@ class Builder(object):
     def close_logs(self):
         os.close(self.stderr_log[0])
         os.close(self.stdout_log[0])        
-        
-    def fetch(self, checkout=None):
-        "Clones a remote repo into a local directory"
-        cmd = [self.git,"clone", self.remote_repo, self.temp_area]
-        os.write(self.stdout_log[0], "> [clone]: %s\n" % cmd)
-        os.write(self.stderr_log[0], "> [clone]: %s\n" % cmd)
-        print cmd
+    
+    # helper for doing commands, and redirecting to our logs
+    def popen(action, cmd):
+        os.write(self.stdout_log[0], "> [%s]: %s\n" % (action, cmd))
+        os.write(self.stderr_log[0], "> [%s]: %s\n" % (action, cmd))
         p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
         p.wait()
         if p.returncode != 0:
-            self.logger.error("Error fetching")
+            self.logger.error("Error during [%s]" % action)
             raise Exception()
         
+    def fetch(self, checkout=None):
+        "Clones a remote repo into a local directory"
+
+        self.popen("clone", [self.git,"clone", self.remote_repo, self.temp_area])        
         self.logger.info("Cloned.")
 
         if checkout:
-            cmd = [self.git, "checkout", checkout]
-            os.write(self.stdout_log[0], "> [checkout]: %s\n" % cmd)
-            os.write(self.stderr_log[0], "> [checkout]: %s\n" % cmd)
-            print cmd
-            p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
-            p.wait()
-            if p.returncode != 0:
-                self.logger.error("Failed to checkout %s", checkout)
-                raise Exception()
+            self.popen("checkout", [self.git, "checkout", checkout])
 
         return 0
 
@@ -126,12 +120,12 @@ class Builder(object):
         p.wait()
         return p.stdout.read().strip()
     
-    # returns the filename on the (eventual) server
-    def filename(self):
-        raise NotYetImplemented()
-    
     # called for each phase in self.phases
     def build(self, phase="build"):
+        self.popen("build " + phase, [self.python, "setup.py", phase])
+    
+    # returns the filename on the (eventual) server
+    def filename(self):
         raise NotYetImplemented()
     
     # called after all the phases are done, returns a filename to upload
@@ -175,18 +169,7 @@ class WindowsBuilder(Builder):
         #if not self.findExe(exe="7z.exe"):
         #    os.environ['PATH'] += os.pathsep + self.zipper
         #    raise Exception("Don't know where 7z is")
-    
-
-    def build(self, phase="build"):
-        cmd = [self.python, "setup.py", phase]
-        os.write(self.stdout_log[0], "> [build]: %s\n" % cmd)
-        os.write(self.stderr_log[0], "> [build]: %s\n" % cmd)
-        p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
-        p.wait()
-        if p.returncode != 0:
-            self.logger.error("Failed to build phase %s", phase)
-            raise Exception()
-    
+        
     def filename(self):
         desc = b.getDesc()
         zipname = "%s-%s.zip" % (this_plat, desc)
@@ -200,19 +183,13 @@ class WindowsBuilder(Builder):
         old_cwd = os.getcwd()
         print "old_cwd: ", old_cwd
         os.chdir(root)
-        cmd = [self.zipper, "a", archive, "."]
-        os.write(self.stdout_log[0], "> [zip]: %s\n" % cmd)
-        os.write(self.stderr_log[0], "> [zip]: %s\n" % cmd)
-        p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
-        p.wait()
-        print "returncode: ", p.returncode
-        os.chdir(old_cwd)
-        if p.returncode != 0:
-            print "failed to zip"
-            raise Exception("failed to zip")
-        if not os.path.exists(os.path.join(root,archive)):
-            print "something went wrong, the archive dosn'et exist"
-            raise Exception("something went wrong.  the archive doesn't exist")
+        try:
+            self.popen("zip", [self.zipper, "a", archive, "."])
+            if not os.path.exists(os.path.join(root,archive)):
+                print "something went wrong, the archive dosn'et exist"
+                raise Exception("something went wrong.  the archive doesn't exist")
+        finally:
+            os.chdir(old_cwd)
         return os.path.abspath(os.path.join(root,archive))
 
 class LinuxBuilder(Builder):
