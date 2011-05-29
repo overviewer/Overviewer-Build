@@ -90,11 +90,7 @@ def build(worker, job):
         return signAndPickle(result)
 
 
-    defaults = dict(repo="git://github.com/agrif/Minecraft-Overviewer.git",
-                    checkout="dtt-c-render",
-                    python=sys.executable)
-
-    defaults.update(depick)
+    defaults = depick
     print defaults
 
     
