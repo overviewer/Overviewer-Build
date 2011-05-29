@@ -38,6 +38,8 @@ else:
 
 
 class Builder(object):
+    phases = []
+    
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger("Builder")
         
@@ -132,6 +134,8 @@ class Builder(object):
         
 
 class WindowsBuilder(Builder):
+    phases = ["clean", "build", "py2exe"]
+    
     def __init__(self, *args, **kwargs):
         #self.logger = logging.getLogger("Builder.WindowsBuilder")
         kwargs['tempdir'] = "C:\\temp\\"

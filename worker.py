@@ -54,7 +54,6 @@ def uploadLogs(b, result):
 
 def build(worker, job):
     print "got a job!"
-    worker.send_job_status(job, 1, 8)
     result = dict(status=None)
 
     if len(job.data) < 33:
@@ -96,11 +95,12 @@ def build(worker, job):
     
 
     b = builder.WindowsBuilder(**defaults)
-    worker.send_job_status(job, 2, 8)
+    num_phases = len(b.phases)
+    worker.send_job_status(job, 1, 4 + num_phases)
 
     try:
         b.fetch(checkout=defaults['checkout'])
-        worker.send_job_status(job, 3, 8)
+        worker.send_job_status(job, 2, 4 + num_phases)
     except:
         result['status'] = 'ERROR'
         result['msg'] = 'Error in either the clone or the checkout'
@@ -125,14 +125,9 @@ def build(worker, job):
     # already exists on S3:
     
     try:
-        b.build(phase="clean")
-        worker.send_job_status(job, 4, 8)
-
-        b.build(phase="build")
-        worker.send_job_status(job, 5, 8)
-
-        b.build(phase="py2exe")
-        worker.send_job_status(job, 6, 8)
+        for i, phase in enumerate(b.phases):
+            b.build(phase=phase)
+            worker.send_job_status(job, 3 + i, 4 + num_phases)
     except:
         print "something failed"
         result['status'] = 'ERROR'
@@ -145,7 +140,7 @@ def build(worker, job):
 
 
     archive= b.zip(root="dist", archive=zipname)
-    worker.send_job_status(job, 7, 8)
+    worker.send_job_status(job, 3 + num_phases, 4 + num_phases)
     print "archive: -->%s<--" % archive
     try:
         print "trying to shcopy"
@@ -175,9 +170,6 @@ def build(worker, job):
         result['status'] = 'ERROR'
         result['msg'] = "ERROR: failed to upload to S3"
         return signAndPickle(result)
-
-    print "\n\n--------\nBuild complete\n\n"
-    return archive
 
 if __name__ == "__main__":
     gm_worker.set_client_id("%s_worker" % this_plat)
