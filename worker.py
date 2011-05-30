@@ -15,7 +15,8 @@ except ImportError:
     sys.path.append(r"c:\devel\python-gearman")
     import gearman
 
-upload = uploader.S3Uploader()
+#upload = uploader.S3Uploader()
+upload = uploader.OverviewerOrgUploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def signAndPickle(d):
