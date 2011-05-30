@@ -24,6 +24,9 @@ class Uploader:
     def check_exists(self, path):
         """Returns true if the given file already exists."""
         raise NotImplementedError()
+    def get_url(self, path):
+        """Returns the URL associated with the given path."""
+        raise NotImplementedError()
     def upload(self, path, srcfile):
         """Upload the file located at srcfile to path, and return the
         access URL."""
@@ -40,6 +43,9 @@ class S3Uploader(Uploader):
             return True
         return False
     
+    def get_url(self, path):
+        return "https://s3.amazonaws.com/minecraft-overviewer/%s" % path
+    
     def upload(self, path, srcfile):
         k = bucket.new_key(path)
         options = {}
@@ -49,7 +55,7 @@ class S3Uploader(Uploader):
         k.change_storage_class("REDUCED_REDUNDANCY")
         k.make_public()
         
-        return "https://s3.amazonaws.com/minecraft-overviewer/%s" % path
+        return self.get_url(path)
 
 class OverviewerOrgUploader(Uploader):
     class HeadRequest(urllib2.Request):
@@ -69,6 +75,9 @@ class OverviewerOrgUploader(Uploader):
         except urllib2.HTTPError:
             return False
     
+    def get_url(self, path):
+        return self.baseurl + path
+    
     def upload(self, path, srcfile):
         dest = self.basedest + path
         
@@ -76,4 +85,4 @@ class OverviewerOrgUploader(Uploader):
         os.chmod(srcfile, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
         
         self.popen("scp", [self.scp, srcfile, dest])
-        return self.baseurl + path
+        return self.get_url(path)

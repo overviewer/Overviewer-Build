@@ -100,7 +100,7 @@ def build(worker, job):
         result['status'] = 'SUCCESS'
         result['built'] = False
         print "found a copy already!"
-        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['url'] = upload.get_url(zipname)
         uploadLogs(b, result) 
         return signAndPickle(result)
 
