@@ -1,4 +1,5 @@
 import builder
+import uploader
 import sys
 import traceback
 import os
@@ -14,18 +15,7 @@ except ImportError:
     sys.path.append(r"c:\devel\python-gearman")
     import gearman
 
-try:
-    import boto
-except ImportError:
-    sys.path.append(r"c:\devel\boto")
-    import boto
-
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-
-#conn = S3Connection('1QWAVYJPN7K868CEDZ82')
-#bucket = conn.get_bucket("minecraft-overviewer")
-
+upload = uploader.S3Uploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def signAndPickle(d):
@@ -36,19 +26,12 @@ def signAndPickle(d):
 def uploadLogs(b, result):
     b.close_logs()
     now = time.strftime("%Y_%m_%d_%H:%M:%S")
+
     err_log = "build_logs/%s.stderr.txt" % now
-    #k = bucket.new_key(err_log)
-    #k.set_contents_from_filename(b.stderr_log[1], headers={'Content-Type': 'text/plain'})
-    #k.change_storage_class("REDUCED_REDUNDANCY")
-    #k.make_public()
-    result['build_log_stderr'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % err_log
+    result['build_log_stderr'] = upload.upload(err_log, b.stderr_log[1])
     
     out_log = "build_logs/%s.stdout.txt" % now
-    #k = bucket.new_key(out_log)
-    #k.set_contents_from_filename(b.stdout_log[1], headers={'Content-Type': 'text/plain'})
-    #k.change_storage_class("REDUCED_REDUNDANCY")
-    #k.make_public()
-    result['build_log_stdout'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % out_log
+    result['build_log_stdout'] = upload.upload(out_log, b.stdout_log[1])
 
 def build(worker, job):
     print "got a job!"
@@ -112,14 +95,13 @@ def build(worker, job):
     
     # before we take the time to build, first see if a copy of this
     # already exists on S3:
-    """k = bucket.get_key(zipname)
-    if k:
+    if upload.check_exists(zipname):
         result['status'] = 'SUCCESS'
         result['built'] = False
         print "found a copy already!"
         result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
         uploadLogs(b, result) 
-        return signAndPickle(result)"""
+        return signAndPickle(result)
 
     try:
         for i, phase in enumerate(b.phases):
@@ -140,14 +122,10 @@ def build(worker, job):
 
     # upload
     try:
-        #k = bucket.new_key(zipname)
-        #k.set_contents_from_filename(archive)
-        #k.change_storage_class("REDUCED_REDUNDANCY")
-        #k.make_public()
-        #url = k.generate_url(86400)
+        url = upload.upload(zipname, archive)
         result['status'] = 'SUCCESS'
         result['built'] = True
-        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['url'] = url
         uploadLogs(b, result) 
         return signAndPickle(result)
 
