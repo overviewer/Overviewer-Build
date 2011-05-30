@@ -3,15 +3,6 @@ import subprocess
 import os
 import stat
 
-try:
-    import boto
-except ImportError:
-    sys.path.append(r"c:\devel\boto")
-    import boto
-
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-
 class Uploader:
     def popen(self, action, cmd):
         #self.logger.info("running command [%s]" % action)
@@ -34,6 +25,15 @@ class Uploader:
 
 class S3Uploader(Uploader):
     def __init__(self):
+        try:
+            import boto
+        except ImportError:
+            sys.path.append(r"c:\devel\boto")
+            import boto
+            
+        from boto.s3.connection import S3Connection
+        from boto.s3.key import Key
+        
         self.conn = S3Connection('1QWAVYJPN7K868CEDZ82')
         self.bucket = conn.get_bucket("minecraft-overviewer")
 
