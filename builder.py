@@ -44,8 +44,9 @@ class Builder(object):
         
         self.remote_repo = kwargs.get("repo", "git://github.com/brownan/Minecraft-Overviewer.git")
         
-        self.logger.debug("making temp_area: %s", self.temp_area)
         self.temp_area = tempfile.mkdtemp(prefix="mco_build_temp", **tempfile_options)
+        self.logger.debug("making temp_area: %s", self.temp_area)
+        self.original_dir = os.getcwd()
         os.chdir(self.temp_area)
    
         self.git = kwargs.get("git", "git")
@@ -72,8 +73,7 @@ class Builder(object):
         #os.close(self.stdout_log[0])
         try:
             self.logger.debug("deleting temp_area: %s", self.temp_area)
-            os.chdir(os.path.split(sys.argv[0])[0])
-            print os.getcwd()
+            os.chdir(self.original_dir)
             shutil.rmtree(self.temp_area, onerror=self.forceDeleter)
         except:
             print "Failed to delete temp-area:"
@@ -89,7 +89,8 @@ class Builder(object):
         os.close(self.stdout_log[0])        
     
     # helper for doing commands, and redirecting to our logs
-    def popen(action, cmd):
+    def popen(self, action, cmd):
+        self.logger.info("running command [%s]" % action)
         os.write(self.stdout_log[0], "> [%s]: %s\n" % (action, cmd))
         os.write(self.stderr_log[0], "> [%s]: %s\n" % (action, cmd))
         p = subprocess.Popen(cmd, stdout=self.stdout_log[0], stderr=self.stderr_log[0])
@@ -191,9 +192,18 @@ class WindowsBuilder(Builder):
 class LinuxBuilder(Builder):
     pass
 
+@Builder.register(osx_app = platform.system() == 'Darwin')
 class OSXBuilder(Builder):
-    pass
-
-
-
-
+    phases = ['clean', 'py2app']
+    def __init__(self, *args, **kwargs):
+        Builder.__init__(self, *args, **kwargs)
+        os.environ['PIL_INCLUDE_DIR'] = r"/home/agrif/devel/mc-overviewer"
+        
+    def filename(self):
+        desc = self.getDesc()
+        return "%s-%s.dmg" % (self.platform, desc)
+    
+    def package(self):
+        dmgname = self.filename()
+        self.popen("dmgcreate", ['hdiutil', 'create', dmgname, '-srcfolder', './dist/'])
+        return dmgname

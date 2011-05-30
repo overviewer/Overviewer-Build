@@ -12,11 +12,22 @@ try:
 except:
     pass
 
-b = builder.Builder.builders[def_plat]()
+defaults = {'repo' : 'git://github.com/agrif/Minecraft-Overviewer.git',
+            'checkout' : 'py-package'}
 
-b.fetch()
-
-for phase in b.phases:
-    b.build(phase=phase)
-
-print "archive:", b.package()
+try:
+    print "building on platform", def_plat
+    b = builder.Builder.builders[def_plat](**defaults)
+    if 'checkout' in defaults:
+        b.fetch(checkout=defaults['checkout'])
+    else:
+        b.fetch()
+    for phase in b.phases:
+        b.build(phase=phase)
+        
+    print "archive:", b.package()
+except:
+    print "STDOUT:"
+    print open(b.stdout_log[1]).read()
+    print "STDERR:"
+    print open(b.stderr_log[1]).read()

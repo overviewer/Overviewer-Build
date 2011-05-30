@@ -23,8 +23,8 @@ except ImportError:
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 
-conn = S3Connection('1QWAVYJPN7K868CEDZ82')
-bucket = conn.get_bucket("minecraft-overviewer")
+#conn = S3Connection('1QWAVYJPN7K868CEDZ82')
+#bucket = conn.get_bucket("minecraft-overviewer")
 
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
@@ -37,17 +37,17 @@ def uploadLogs(b, result):
     b.close_logs()
     now = time.strftime("%Y_%m_%d_%H:%M:%S")
     err_log = "build_logs/%s.stderr.txt" % now
-    k = bucket.new_key(err_log)
-    k.set_contents_from_filename(b.stderr_log[1], headers={'Content-Type': 'text/plain'})
-    k.change_storage_class("REDUCED_REDUNDANCY")
-    k.make_public()
+    #k = bucket.new_key(err_log)
+    #k.set_contents_from_filename(b.stderr_log[1], headers={'Content-Type': 'text/plain'})
+    #k.change_storage_class("REDUCED_REDUNDANCY")
+    #k.make_public()
     result['build_log_stderr'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % err_log
     
     out_log = "build_logs/%s.stdout.txt" % now
-    k = bucket.new_key(out_log)
-    k.set_contents_from_filename(b.stdout_log[1], headers={'Content-Type': 'text/plain'})
-    k.change_storage_class("REDUCED_REDUNDANCY")
-    k.make_public()
+    #k = bucket.new_key(out_log)
+    #k.set_contents_from_filename(b.stdout_log[1], headers={'Content-Type': 'text/plain'})
+    #k.change_storage_class("REDUCED_REDUNDANCY")
+    #k.make_public()
     result['build_log_stdout'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % out_log
 
 def build(worker, job):
@@ -95,29 +95,31 @@ def build(worker, job):
     num_phases = len(b.phases)
     worker.send_job_status(job, 1, 4 + num_phases)
 
-    if 'checkout' in defaults:
-        try:
+    try:
+        if 'checkout' in defaults:
             b.fetch(checkout=defaults['checkout'])
-            worker.send_job_status(job, 2, 4 + num_phases)
-        except:
-            result['status'] = 'ERROR'
-            result['msg'] = 'Error in either the clone or the checkout'
-            uploadLogs(b, result) 
-            return signAndPickle(result)
+        else:
+            b.fetch()
+        worker.send_job_status(job, 2, 4 + num_phases)
+    except:
+        result['status'] = 'ERROR'
+        result['msg'] = 'Error in either the clone or the checkout'
+        uploadLogs(b, result) 
+        return signAndPickle(result)
 
     zipname = b.filename()
     print "zipname -->%s<--" % zipname
     
     # before we take the time to build, first see if a copy of this
     # already exists on S3:
-    k = bucket.get_key(zipname)
+    """k = bucket.get_key(zipname)
     if k:
         result['status'] = 'SUCCESS'
         result['built'] = False
         print "found a copy already!"
         result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
         uploadLogs(b, result) 
-        return signAndPickle(result)
+        return signAndPickle(result)"""
 
     try:
         for i, phase in enumerate(b.phases):
@@ -138,10 +140,10 @@ def build(worker, job):
 
     # upload
     try:
-        k = bucket.new_key(zipname)
-        k.set_contents_from_filename(archive)
-        k.change_storage_class("REDUCED_REDUNDANCY")
-        k.make_public()
+        #k = bucket.new_key(zipname)
+        #k.set_contents_from_filename(archive)
+        #k.change_storage_class("REDUCED_REDUNDANCY")
+        #k.make_public()
         #url = k.generate_url(86400)
         result['status'] = 'SUCCESS'
         result['built'] = True
