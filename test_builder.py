@@ -19,6 +19,7 @@ defaults = {'repo' : 'git://github.com/agrif/Minecraft-Overviewer.git',
 try:
     print "building on platform", def_plat
     b = builder.Builder.builders[def_plat](**defaults)
+    print "builder thinks it's for", b.platform
     if 'checkout' in defaults:
         b.fetch(checkout=defaults['checkout'])
     else:

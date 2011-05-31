@@ -28,12 +28,14 @@ class Builder(object):
     def register(cls, **kwargs):
         def sub_register(builder):
             for key in kwargs:
-                def sub_constructor(*sub_args, **sub_kwargs):
-                    b = builder(*sub_args, **sub_kwargs)
-                    b.platform = key
-                    return b
+                def platform_setter(sub_builder, platform):
+                    def sub_constructor(*sub_args, **sub_kwargs):
+                        b = sub_builder(*sub_args, **sub_kwargs)
+                        b.platform = platform
+                        return b
+                    return sub_constructor
                 if kwargs[key]:
-                    cls.builders[key] = sub_constructor
+                    cls.builders[key] = platform_setter(builder, key)
         return sub_register
         
     def __init__(self, *args, **kwargs):
