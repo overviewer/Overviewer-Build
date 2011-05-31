@@ -220,8 +220,8 @@ class OSXBuilder(Builder):
         self.popen("dmgcreate", ['hdiutil', 'create', dmgname, '-srcfolder', './dist/'])
         return dmgname
 
-@Builder.register(deb86_32 = platform.system() == 'Linux' and 'debian' in platform.dist() and '32bit' in platform.architecture(),
-                  deb86_64 = platform.system() == 'Linux' and 'debian' in platform.dist() and '64bit' in platform.architecture())
+@Builder.register(deb86_32 = platform.system() == 'Linux' and ('debian' in platform.dist() or 'Ubuntu' in platform.dist()) and '32bit' in platform.architecture(),
+                  deb86_64 = platform.system() == 'Linux' and ('debian' in platform.dist() or 'Ubuntu' in platform.dist()) and '64bit' in platform.architecture())
 class DebBuilder(Builder):
     phases = ['clean', 'debuild']
     
