@@ -1,5 +1,6 @@
 import builder
 import sys
+import traceback
 
 try:
     def_plat = builder.Builder.builders.keys()[0]
@@ -27,6 +28,8 @@ try:
         
     print "archive:", b.package()
 except:
+    print "Exception:"
+    traceback.print_exc()
     print "STDOUT:"
     print open(b.stdout_log[1]).read()
     print "STDERR:"

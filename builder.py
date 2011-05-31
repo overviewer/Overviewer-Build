@@ -8,6 +8,7 @@ import traceback
 import time
 import stat
 import platform
+import glob
 
 
 logger = logging.getLogger("Builder")
@@ -54,6 +55,7 @@ class Builder(object):
 
         self.stderr_log = tempfile.mkstemp(prefix="mco_log_", **tempfile_options)
         self.stdout_log = tempfile.mkstemp(prefix="mco_log_", **tempfile_options)
+        self.logs_closed = False
 
     def forceDeleter(self, func, path, excinfo):
         os.chmod(path, stat.S_IWRITE)
@@ -69,12 +71,13 @@ class Builder(object):
                 print "can't delete ", path
     
     def __del__(self):
-        #os.close(self.stderr_log[0])
-        #os.close(self.stdout_log[0])
         try:
             self.logger.debug("deleting temp_area: %s", self.temp_area)
             os.chdir(self.original_dir)
             shutil.rmtree(self.temp_area, onerror=self.forceDeleter)
+            self.close_logs()
+            os.remove(self.stderr_log[1])
+            os.remove(self.stdout_log[1])
         except:
             print "Failed to delete temp-area:"
             traceback.print_exc()
@@ -85,8 +88,11 @@ class Builder(object):
                 print "Failed again!!!"
 
     def close_logs(self):
+        if self.logs_closed:
+            return
         os.close(self.stderr_log[0])
-        os.close(self.stdout_log[0])        
+        os.close(self.stdout_log[0])
+        self.logs_closed = True
     
     # helper for doing commands, and redirecting to our logs
     def popen(self, action, cmd):
@@ -112,6 +118,12 @@ class Builder(object):
 
     def getDesc(self):
         cmd = [self.git, "describe", "--tags"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        p.wait()
+        return p.stdout.read().strip()
+    
+    def getVersion(self):
+        cmd = [self.python, "setup.py", "--version"]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
@@ -207,3 +219,40 @@ class OSXBuilder(Builder):
         dmgname = self.filename()
         self.popen("dmgcreate", ['hdiutil', 'create', dmgname, '-srcfolder', './dist/'])
         return dmgname
+
+@Builder.register(deb86_32 = platform.system() == 'Linux' and 'debian' in platform.dist() and '32bit' in platform.architecture(),
+                  deb86_64 = platform.system() == 'Linux' and 'debian' in platform.dist() and '64bit' in platform.architecture())
+class DebBuilder(Builder):
+    phases = ['clean', 'debuild']
+    
+    def fetch(self, *args, **kwargs):
+        ret = Builder.fetch(self, *args, **kwargs)
+        
+        debsrc = os.path.split(sys.argv[0])[0]
+        debsrc = os.path.join(self.original_dir, debsrc, 'debian')
+        shutil.copytree(debsrc, 'debian')
+        
+        clog = open('debian/changelog', 'r').read()
+        clog = clog.replace("{VERSION}", self.getVersion())
+        open('debian/changelog', 'w').write(clog)
+        
+        return ret
+    
+    def build(self, phase='build'):
+        if phase != 'debuild':
+            return Builder.build(self, phase)
+        
+        # run debuild!
+        self.popen("debuild", ['debuild', '-i', '-us', '-uc', '-b'])
+        
+        # move build products into current dir
+        for fname in glob.glob("../minecraft-overviewer_%s_*" % self.getVersion()):
+            newname = os.path.split(fname)[1]
+            shutil.move(fname, newname)
+        
+    def filename(self):
+        desc = self.getDesc()
+        return "%s-%s.deb" % (self.platform, desc)
+    
+    def package(self):
+        return glob.glob("minecraft-overviewer_%s_*.deb" % self.getVersion())[0]

@@ -1,0 +1,13 @@
+Source: minecraft-overviewer
+Section: python
+Priority: optional
+Maintainer: Aaron Griffith
+Build-Depends: debhelper (>= 7.0.50~), python-support (>= 0.6), cdbs (>= 0.4.49), python-all-dev, python-imaging (>= 1.1.7), python-numpy (>= 1.3.0)
+XS-Python-Version: >=2.6
+
+Package: minecraft-overviewer
+Architecture: any
+Homepage: http://overviewer.org/
+XB-Python-Version: ${python:Versions}
+Depends: ${misc:Depends}, ${python:Depends}, python-imaging (>= 1.1.7), python-numpy (>= 1.3.0)
+Description: Generates large resolution images of a Minecraft map.
