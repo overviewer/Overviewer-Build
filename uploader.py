@@ -64,7 +64,7 @@ class OverviewerOrgUploader(Uploader):
     
     def __init__(self):
         self.baseurl = "http://overviewer.org/builds/"
-        self.basedest = "overviewer.org:/var/www/org/overviewer/htdocs/builds/"
+        self.basedest = "overviewer-upload@overviewer.org:/var/www/org/overviewer/htdocs/builds/"
         self.scp = 'scp'
     
     def check_exists(self, path):
