@@ -3,6 +3,7 @@ import uploader
 import sys
 import traceback
 import os
+import os.path
 import shutil
 import hashlib
 import hmac
@@ -15,13 +16,28 @@ except ImportError:
     sys.path.append(r"c:\devel\python-gearman")
     import gearman
 
+secret_key = None
+if 'SECRET_KEY' in os.environ:
+    secret_key = os.environ['SECRET_KEY'].strip()
+else:
+    secret_key_path = os.path.split(sys.argv[0])[0]
+    secret_key_path = os.path.join(secret_key_path, 'secret_key.txt')
+    try:
+        with open(secret_key_path) as f:
+            secret_key = f.readline().strip()
+    except:
+        print "You must create the file `%s'" % (secret_key_path,)
+        print "and fill it with the build system password on the top line."
+        print "(or put it in the SECRET_KEY environment variable.)"
+        sys.exit(1)
+
 #upload = uploader.S3Uploader()
 upload = uploader.OverviewerOrgUploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def signAndPickle(d):
     data = cPickle.dumps(d)
-    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    h = hmac.new(secret_key, data, hashlib.sha256)
     return h.digest() + data
 
 def uploadLogs(b, result):
@@ -47,7 +63,7 @@ def build(worker, job):
     received_h = job.data[0:32]
     # calc hmac of the resulting data
     data = job.data[32:]
-    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    h = hmac.new(secret_key, data, hashlib.sha256)
     if (h.digest() != received_h):
         result['status'] = 'ERROR'
         print "ERROR:  job data is not valid.  bad signature"
