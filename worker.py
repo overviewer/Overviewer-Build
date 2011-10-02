@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import cPickle
 import time
+import subprocess
 
 this_plat = builder.this_plat
 
@@ -137,6 +138,23 @@ def build(worker, job):
 
         b.build(phase="py2exe")
         worker.send_job_status(job, 6, 8)
+
+        # build docs
+        doc_src="docs"
+        doc_dest="dist\\docs"
+        cmd = [b.python, r"c:\devel\Sphinx-1.0.8\sphinx-build.py", "-b", "html", doc_src, doc_dest]
+        print "building docs with %r" % cmd
+        print "cwd: %r" % os.getcwd()
+        p = subprocess.Popen(cmd)
+        p.wait()
+        if (p.returncode != 0):
+            print "Failed to build docs"
+            raise Exception("Failed to build docs")
+        else:
+            print "docs OK"
+        
+    
+
     except:
         print "something failed"
         result['status'] = 'ERROR'
