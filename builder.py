@@ -236,6 +236,8 @@ class DebBuilder(Builder):
         
         clog = open('debian/changelog', 'r').read()
         clog = clog.replace("{VERSION}", self.getVersion())
+        clog = clog.replace("{DESC}", self.getDesc())
+        clog = clog.replace("{DATE}", time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime()))
         open('debian/changelog', 'w').write(clog)
         
         return ret
@@ -248,7 +250,7 @@ class DebBuilder(Builder):
         self.popen("debuild", ['debuild', '-i', '-us', '-uc', '-b'])
         
         # move build products into current dir
-        for fname in glob.glob("../minecraft-overviewer_%s_*" % self.getVersion()):
+        for fname in glob.glob("../minecraft-overviewer_%s-0~overviewer1_*" % self.getVersion()):
             newname = os.path.split(fname)[1]
             shutil.move(fname, newname)
         
@@ -257,4 +259,4 @@ class DebBuilder(Builder):
         return "%s-%s.deb" % (self.platform, desc)
     
     def package(self):
-        return glob.glob("minecraft-overviewer_%s_*.deb" % self.getVersion())[0]
+        return glob.glob("minecraft-overviewer_%s-0~overviewer1_*.deb" % self.getVersion())[0]

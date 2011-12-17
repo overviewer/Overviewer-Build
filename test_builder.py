@@ -13,8 +13,8 @@ try:
 except:
     pass
 
-defaults = {'repo' : 'git://github.com/agrif/Minecraft-Overviewer.git',
-            'checkout' : 'py-package'}
+defaults = {'repo' : 'git://github.com/overviewer/Minecraft-Overviewer.git',
+            'checkout' : 'master'}
 
 try:
     print "building on platform", def_plat
