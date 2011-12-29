@@ -28,6 +28,7 @@ class S3Uploader(Uploader):
         try:
             import boto
         except ImportError:
+            import sys
             sys.path.append(r"c:\devel\boto")
             import boto
             
@@ -35,7 +36,7 @@ class S3Uploader(Uploader):
         from boto.s3.key import Key
         
         self.conn = S3Connection('1QWAVYJPN7K868CEDZ82')
-        self.bucket = conn.get_bucket("minecraft-overviewer")
+        self.bucket = self.conn.get_bucket("minecraft-overviewer")
 
     def check_exists(self, path):
         k = self.bucket.get_key(path)
@@ -47,7 +48,7 @@ class S3Uploader(Uploader):
         return "https://s3.amazonaws.com/minecraft-overviewer/%s" % path
     
     def upload(self, path, srcfile):
-        k = bucket.new_key(path)
+        k = self.bucket.new_key(path)
         options = {}
         if path.endswith(".txt"):
             options['headers'] = {'Content-Type': 'text/plain'}

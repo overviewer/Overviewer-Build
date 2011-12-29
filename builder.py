@@ -182,13 +182,13 @@ class WindowsBuilder(Builder):
         #    raise Exception("Don't know where 7z is")
         
     def filename(self):
-        desc = b.getDesc()
+        desc = self.getDesc()
         zipname = "%s-%s.zip" % (self.platform, desc)
         return zipname
     
     def package(self):
         zipname = self.filename()
-        return b.zip(root="dist", archive=zipname)
+        return self.zip(root="dist", archive=zipname)
     
     def zip(self, root, archive):
         old_cwd = os.getcwd()
@@ -196,7 +196,7 @@ class WindowsBuilder(Builder):
         os.chdir(root)
         try:
             self.popen("zip", [self.zipper, "a", archive, "."])
-            if not os.path.exists(os.path.join(root,archive)):
+            if not os.path.exists(archive):
                 print "something went wrong, the archive dosn'et exist"
                 raise Exception("something went wrong.  the archive doesn't exist")
         finally:
