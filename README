@@ -1,0 +1,33 @@
+This is the distributed build system for Minecraft-Overviewer.
+
+Running `worker.py` will launch a Gearman worker that will fetch,
+build and upload Overviewer packages on command. Usually these
+commands come in the form of a `!build` command issued in the
+#overviewer IRC channel.
+
+`worker.py` will autodetect what system you are on, and act
+accordingly. Currently supported systems are Windows, Debian, and
+OSX. Of course, you will need to be able to compile and run
+Overviewer, but you will also need a few extra things.
+
+ * `git` is used to fetch the packages. You must have it.
+
+ * `python-gearman` to communicate with the master gearman server. Use
+   eminence's `testing` branch to prevent most random disconnections:
+    
+   https://github.com/eminence/python-gearman/tree/testing
+
+ * The build system password, in either `secret_key.txt` or the
+   `SECRET_KEY` environment variable. If you're setting up a build
+   machine, this will be provided to you.
+ 
+ * Some way of uploading, somewhere. Currently included uploaders are
+   for an S3 account and for overviewer.org. The overviewer.org
+   uploader needs an SSH key, which can be provided if you're setting
+   up a build machine.
+
+Depending on the system, some extra things may be needed that aren't
+listed here. Debian, for instance, needs the debian package tools
+installed.
+
+This may or may not be useful to anyone else, or even anyone at all. YMMV.

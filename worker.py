@@ -1,7 +1,9 @@
 import builder
+import uploader
 import sys
 import traceback
 import os
+import os.path
 import shutil
 import hashlib
 import hmac
@@ -9,53 +11,48 @@ import cPickle
 import time
 import subprocess
 
-this_plat = builder.this_plat
-
 try:
     import gearman
 except ImportError:
     sys.path.append(r"c:\devel\python-gearman")
     import gearman
 
-try:
-    import boto
-except ImportError:
-    sys.path.append(r"c:\devel\boto")
-    import boto
+secret_key = None
+if 'SECRET_KEY' in os.environ:
+    secret_key = os.environ['SECRET_KEY'].strip()
+else:
+    secret_key_path = os.path.split(sys.argv[0])[0]
+    secret_key_path = os.path.join(secret_key_path, 'secret_key.txt')
+    try:
+        with open(secret_key_path) as f:
+            secret_key = f.readline().strip()
+    except:
+        print "You must create the file `%s'" % (secret_key_path,)
+        print "and fill it with the build system password on the top line."
+        print "(or put it in the SECRET_KEY environment variable.)"
+        sys.exit(1)
 
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-
-conn = S3Connection('1QWAVYJPN7K868CEDZ82')
-bucket = conn.get_bucket("minecraft-overviewer")
-
+#upload = uploader.S3Uploader()
+upload = uploader.OverviewerOrgUploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
 def signAndPickle(d):
     data = cPickle.dumps(d)
-    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    h = hmac.new(secret_key, data, hashlib.sha256)
     return h.digest() + data
 
 def uploadLogs(b, result):
     b.close_logs()
     now = time.strftime("%Y_%m_%d_%H:%M:%S")
+
     err_log = "build_logs/%s.stderr.txt" % now
-    k = bucket.new_key(err_log)
-    k.set_contents_from_filename(b.stderr_log[1], headers={'Content-Type': 'text/plain'})
-    k.change_storage_class("REDUCED_REDUNDANCY")
-    k.make_public()
-    result['build_log_stderr'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % err_log
+    result['build_log_stderr'] = upload.upload(err_log, b.stderr_log[1])
     
     out_log = "build_logs/%s.stdout.txt" % now
-    k = bucket.new_key(out_log)
-    k.set_contents_from_filename(b.stdout_log[1], headers={'Content-Type': 'text/plain'})
-    k.change_storage_class("REDUCED_REDUNDANCY")
-    k.make_public()
-    result['build_log_stdout'] = "https://s3.amazonaws.com/minecraft-overviewer/%s" % out_log
+    result['build_log_stdout'] = upload.upload(out_log, b.stdout_log[1])
 
 def build(worker, job):
     print "got a job!"
-    worker.send_job_status(job, 1, 8)
     result = dict(status=None)
 
     if len(job.data) < 33:
@@ -67,7 +64,7 @@ def build(worker, job):
     received_h = job.data[0:32]
     # calc hmac of the resulting data
     data = job.data[32:]
-    h = hmac.new("thisa realyreally secreyKEY", data, hashlib.sha256)
+    h = hmac.new(secret_key, data, hashlib.sha256)
     if (h.digest() != received_h):
         result['status'] = 'ERROR'
         print "ERROR:  job data is not valid.  bad signature"
@@ -91,103 +88,62 @@ def build(worker, job):
         return signAndPickle(result)
 
 
-    defaults = dict(repo="git://github.com/agrif/Minecraft-Overviewer.git",
-                    checkout="dtt-c-render",
-                    python=sys.executable)
-
-    defaults.update(depick)
+    defaults = depick
     print defaults
 
-    
-
-    b = builder.WindowsBuilder(**defaults)
-    worker.send_job_status(job, 2, 8)
+    platform = job.task.split("_", 1)[1]
+    b = builder.Builder.builders[platform](**defaults)
+    num_phases = len(b.phases)
+    worker.send_job_status(job, 1, 4 + num_phases)
 
     try:
-        b.fetch(checkout=defaults['checkout'])
-        worker.send_job_status(job, 3, 8)
+        if 'checkout' in defaults:
+            b.fetch(checkout=defaults['checkout'])
+        else:
+            b.fetch()
+        worker.send_job_status(job, 2, 4 + num_phases)
     except:
         result['status'] = 'ERROR'
         result['msg'] = 'Error in either the clone or the checkout'
         uploadLogs(b, result) 
         return signAndPickle(result)
 
-
-    desc = b.getDesc()
-    zipname = "%s-%s.zip" % (this_plat, desc)
+    zipname = b.filename()
     print "zipname -->%s<--" % zipname
-
-    k = bucket.get_key(zipname)
-    if k:
+    
+    # before we take the time to build, first see if a copy of this
+    # already exists on S3:
+    if upload.check_exists(zipname):
         result['status'] = 'SUCCESS'
         result['built'] = False
         print "found a copy already!"
-        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['url'] = upload.get_url(zipname)
         uploadLogs(b, result) 
         return signAndPickle(result)
 
-    # before we take the time to build, first see if a copy of this
-    # already exists on S3:
-    
     try:
-        b.build(phase="clean")
-        worker.send_job_status(job, 4, 8)
-
-        b.build(phase="build")
-        worker.send_job_status(job, 5, 8)
-
-        b.build(phase="py2exe")
-        worker.send_job_status(job, 6, 8)
-
-        # build docs
-        doc_src="docs"
-        doc_dest="dist\\docs"
-        cmd = [b.python, r"c:\devel\Sphinx-1.0.8\sphinx-build.py", "-b", "html", doc_src, doc_dest]
-        print "building docs with %r" % cmd
-        print "cwd: %r" % os.getcwd()
-        p = subprocess.Popen(cmd)
-        p.wait()
-        if (p.returncode != 0):
-            print "Failed to build docs"
-            raise Exception("Failed to build docs")
-        else:
-            print "docs OK"
-        
-    
-
+        for i, phase in enumerate(b.phases):
+            b.build(phase=phase)
+            worker.send_job_status(job, 3 + i, 4 + num_phases)
     except:
         print "something failed"
         result['status'] = 'ERROR'
         result['msg'] = "ERROR: build failed.  Check the build logs for info"
         uploadLogs(b, result) 
         return signAndPickle(result)
-        
-        
 
 
-
-    archive= b.zip(root="dist", archive=zipname)
-    worker.send_job_status(job, 7, 8)
+    archive = b.package()
+    worker.send_job_status(job, 3 + num_phases, 4 + num_phases)
     print "archive: -->%s<--" % archive
-    try:
-        print "trying to shcopy"
-        print "exists:" , os.path.exists(archive)
-        shutil.copy(archive, "c:\\devel\\")
-        print "copy was OK"
-    except:
-        print "error in the copy!"
-        traceback.print_exc()
     print "done!"
 
+    # upload
     try:
-        k = bucket.new_key(zipname)
-        k.set_contents_from_filename(archive)
-        k.change_storage_class("REDUCED_REDUNDANCY")
-        k.make_public()
-        #url = k.generate_url(86400)
+        url = upload.upload(zipname, archive)
         result['status'] = 'SUCCESS'
         result['built'] = True
-        result['url'] = "https://s3.amazonaws.com/minecraft-overviewer/" + zipname
+        result['url'] = url
         uploadLogs(b, result) 
         return signAndPickle(result)
 
@@ -198,12 +154,15 @@ def build(worker, job):
         result['msg'] = "ERROR: failed to upload to S3"
         return signAndPickle(result)
 
-    print "\n\n--------\nBuild complete\n\n"
-    return archive
-
 if __name__ == "__main__":
+    if not builder.Builder.builders:
+        print "no supported builders found, exiting..."
+        sys.exit(1)
+    
+    this_plat = builder.Builder.builders.keys()[0]
     gm_worker.set_client_id("%s_worker" % this_plat)
-    gm_worker.register_task("build_%s" % this_plat, build)
+    for platform in builder.Builder.builders:
+        gm_worker.register_task("build_%s" % platform, build)
 
     while(1):
         print "Starting worker for %s" % this_plat
