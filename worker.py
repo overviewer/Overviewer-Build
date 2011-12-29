@@ -125,6 +125,8 @@ def build(worker, job):
         for i, phase in enumerate(b.phases):
             b.build(phase=phase)
             worker.send_job_status(job, 3 + i, 4 + num_phases)
+
+        b.post_build()
     except:
         print "something failed"
         result['status'] = 'ERROR'

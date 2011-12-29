@@ -133,6 +133,11 @@ class Builder(object):
     # called for each phase in self.phases
     def build(self, phase="build"):
         self.popen("build " + phase, [self.python, "setup.py", phase])
+
+    # Do some extra stuff after the build, if necessary
+    def post_build(self):
+        pass
+
     
     # returns the filename on the (eventual) server
     def filename(self):
@@ -202,6 +207,21 @@ class WindowsBuilder(Builder):
         finally:
             os.chdir(old_cwd)
         return os.path.abspath(os.path.join(root,archive))
+    def post_build(self):
+
+        # build docs
+        doc_src="docs"
+        doc_dest="dist\\docs"
+        cmd = [self.python, r"c:\devel\Sphinx-1.0.8\sphinx-build.py", "-b", "html", doc_src, doc_dest]
+        print "building docs with %r" % cmd
+        print "cwd: %r" % os.getcwd()
+        p = subprocess.Popen(cmd)
+        p.wait()
+        if (p.returncode != 0):
+            print "Failed to build docs"
+            raise Exception("Failed to build docs")
+        else:
+            print "docs OK"
 
 class LinuxBuilder(Builder):
     pass
