@@ -1,2 +1,3 @@
 *.pyc
 secret_key.txt
+extras/release_uploader/credentials.py
