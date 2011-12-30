@@ -3,3 +3,10 @@
 
 %:
 	dh $@
+
+# force python2.6 (bit of a hack)
+override_dh_pysupport:
+	for file in `find debian/minecraft-overviewer -type f`; do \
+		sed -ri 's/#!\/usr\/bin\/(env |)?python(\d\.\d|)?/#!\/usr\/bin\/python2.6/' $$file; \
+	done
+	dh_pysupport -V 2.6
