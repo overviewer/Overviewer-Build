@@ -38,9 +38,9 @@ else:
 upload = uploader.OverviewerOrgUploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
 
-def package_hook(target, commit, version, url):
+def package_hook(platform, repo, checkout, commit, version, url):
     hook = "http://overviewer.org/hooks/package"
-    data = urllib.urlencode({'target':target, 'commit':commit, 'version':version, 'url':url})
+    data = urllib.urlencode({'platform':platform, 'repo':repo, 'checkout':checkout, 'commit':commit, 'version':version, 'url':url})
     key = urllib.urlencode({'key':secret_key})
     
     try:
@@ -163,7 +163,7 @@ def build(worker, job):
         result['url'] = url
         uploadLogs(b, result) 
         
-        package_hook(platform, b.getCommit(), b.getVersion(), url)
+        package_hook(platform, defaults.get('repo', ''), defaults.get('checkout', 'master'), b.getCommit(), b.getVersion(), url)
         
         return signAndPickle(result)
 
