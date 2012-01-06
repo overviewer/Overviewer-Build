@@ -10,6 +10,8 @@ import hmac
 import cPickle
 import time
 import subprocess
+import urllib
+import urllib2
 
 try:
     import gearman
@@ -35,6 +37,19 @@ else:
 #upload = uploader.S3Uploader()
 upload = uploader.OverviewerOrgUploader()
 gm_worker = gearman.GearmanWorker(["192.168.1.4:9092", "em32.net:9092"])
+
+def package_hook(target, commit, version, url):
+    hook = "http://overviewer.org/hooks/package"
+    data = urllib.urlencode({'target':target, 'commit':commit, 'version':version, 'url':url})
+    key = urllib.urlencode({'key':secret_key})
+    
+    try:
+        f = urllib2.urlopen(hook + '?' + key, data)
+        f.read()
+        f.close()
+    except Exception, e:
+        print "could not do POST hook:", e
+        pass # couldn't contact the server, ack!
 
 def signAndPickle(d):
     data = cPickle.dumps(d)
@@ -147,6 +162,9 @@ def build(worker, job):
         result['built'] = True
         result['url'] = url
         uploadLogs(b, result) 
+        
+        package_hook(platform, b.getCommit(), b.getVersion(), url)
+        
         return signAndPickle(result)
 
     except:

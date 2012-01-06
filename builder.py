@@ -124,6 +124,12 @@ class Builder(object):
         p.wait()
         return p.stdout.read().strip()
     
+    def getCommit(self):
+        cmd = [self.git, "rev-parse", "HEAD"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        p.wait()
+        return p.stdout.read().strip()
+    
     def getVersion(self):
         cmd = [self.python, "setup.py", "--version"]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
