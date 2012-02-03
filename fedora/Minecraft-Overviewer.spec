@@ -1,6 +1,6 @@
 %define version 0.4.20
 
-%if 0%{?rhel} <= 5
+%if 0%{?rhel} == 5
 %define pythonbin python26
 %define python_sitearch %{_libdir}/python2.6/site-packages
 %else
@@ -17,7 +17,7 @@ Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Vendor: Andrew Brown <brownan@gmail.com>
 Url: http://overviewer.org/
-%if 0%{?rhel} <= 5
+%if 0%{?rhel} == 5
 Requires: python26, python26-imaging
 BuildRequires: python26-devel, python26-imaging-devel, python26-numpy, python26-numpy-devel
 %else
