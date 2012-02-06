@@ -298,7 +298,20 @@ class FedoraBuilder(Builder):
     phases = ['buildsrcrpm', 'buildrpm']
 
     def build(self, phase='buildsrcrpm'):
-        pass
+        if phase == 'buildsrpm':
+            self.popen('buildsrpm',
+                ['rpmbuild', '-bs', '--define', '_source_filedigest_algorithm md5',
+                    'fedora/Minecraft-Overviewer.spec'])
+        else:
+            srpm = 'Minecraft-Overviewer-%s-1.%s.src.rpm' % (self.getVersion(), 'f16')
+            for config in ['epel-5', 'epel-6', 'fedora-16']:
+                self._mock(config+'-i386', srpm)
+                self._mock(config+'-x86_64', srpm)
+
+    def _mock(self, config, srpm):
+        self.popen('mock', ['mock', '-r', config, srpm])
+        return glob.glob('/var/lib/mock/%s/result/*.%s.rpm' %
+            (config, 'x86_64' if platform.architecture() == '64bit' else 'i386'))[0]
 
     def filename(self):
         return 'Minecraft-Overviewer-%s-1.%s.%s.rpm' % \
