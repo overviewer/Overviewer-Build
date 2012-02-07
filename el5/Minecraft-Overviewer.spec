@@ -8,8 +8,8 @@ Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Vendor: Andrew Brown <brownan@gmail.com>
 Url: http://overviewer.org/
-Requires: python-imaging, numpy
-BuildRequires: python-devel, python-imaging-devel, numpy
+Requires: python26, python26-imaging
+BuildRequires: python26-devel, python26-imaging-devel, python26-numpy, python26-numpy-devel
 
 %description
 The Minecraft Overviewer is a command-line tool for rendering high-resolution
@@ -20,10 +20,10 @@ uses the Google Maps API to display a nice interactive map.
 %setup -n %{name}
 
 %build
-env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
+env CFLAGS="$RPM_OPT_FLAGS" %{__python}26 setup.py build
 
 %install
-%{__python} setup.py install -O1 --root=%{buildroot}
+%{__python}26 setup.py install -O1 --root=%{buildroot}
 rm -rf %{buildroot}%{_defaultdocdir}/minecraft-overviewer
 
 %clean
