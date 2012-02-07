@@ -288,25 +288,37 @@ class DebBuilder(Builder):
         return glob.glob("minecraft-overviewer_%s-0~overviewer1_*.deb" % self.getVersion())[0]
 
 @Builder.register(
-    fedora86_32 = platform.system() == 'Linux' and \
+    el6_86_32 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '32bit' in platform.architecture(),
-    fedora86_64 = platform.system() == 'Linux' and \
+    el6_86_64 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
-class FedoraBuilder(Builder):
-    phases = ['buildsrcrpm', 'buildrpm']
+class EL6Builder(Builder):
+    phases = ['buildsrpm', 'buildrpm']
+    _base = 'el6'
+    _mock_configs = ['epel-6', 'fedora-16']
 
-    def build(self, phase='buildsrcrpm'):
+    def fetch(self, *args, **kwargs):
+        ret = Builder.fetch(self, *args, **kwargs)
+
+        spec = os.path.join(self.original_dir, os.path.split(sys.argv[0])[0],
+            self._base, 'Minecraft-Overviewer.spec')
+        spec = open(spec, 'r').read()
+        spec = spec.replace( '{VERSION}', self.getVersion())
+        open('Minecraft-Overviewer.spec', 'w').write(spec)
+
+        return ret
+
+    def build(self, phase='buildsrpm'):
         if phase == 'buildsrpm':
             self.popen('buildsrpm',
-                ['rpmbuild', '-bs', '--define', '_source_filedigest_algorithm md5',
-                    'fedora/Minecraft-Overviewer.spec'])
+                ['rpmbuild', '-bs', 'Minecraft-Overviewer.spec'])
         else:
             srpm = 'Minecraft-Overviewer-%s-1.%s.src.rpm' % (self.getVersion(), 'f16')
-            for config in ['epel-5', 'epel-6', 'fedora-16']:
-                self._mock(config+'-i386', srpm)
-                self._mock(config+'-x86_64', srpm)
+            for platform in self._mock_configs:
+                for arch in ['i386', 'x86_64']:
+                    self._mock('%s-%s' % (platform, arch), srpm)
 
     def _mock(self, config, srpm):
         self.popen('mock', ['mock', '-r', config, srpm])
@@ -318,3 +330,22 @@ class FedoraBuilder(Builder):
             (self.getVersion(), distro, arch)
 
     package = filename
+
+@Builder.register(
+    el5_86_32 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '32bit' in platform.architecture(),
+    el5_86_64 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '64bit' in platform.architecture())
+class EL5Builder(EL6Builder):
+    _base = 'el5'
+    _mock_configs = ['epel-5']
+
+    def build(self, phase='buildsrpm'):
+        if phase == 'buildsrpm':
+            self.popen('buildsrpm',
+                ['rpmbuild', '-bs', '--define', '_source_filedigest_algorithm md5',
+                    'Minecraft-Overviewer.spec'])
+        else:
+            FedoraBuilder.build(self, phase)

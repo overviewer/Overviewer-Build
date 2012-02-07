@@ -1,5 +1,3 @@
-%define version 0.4.20
-
 %if 0%{?rhel} <= 5
 %define pythonbin python26
 %define python_sitearch %{_libdir}/python2.6/site-packages
@@ -9,7 +7,7 @@
 
 Summary: Generates large resolution images of a Minecraft map.
 Name: Minecraft-Overviewer
-Version: %{version}
+Version: {VERSION}
 Release: 1%{?dist}
 Source0: %{name}-%{version}.tar.gz
 License: GNU General Public License v3
