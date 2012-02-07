@@ -22,7 +22,7 @@ logging_handler.setFormatter(formatter)
 
 class Builder(object):
     phases = []
-    
+
     builders = {}
     @classmethod
     def register(cls, **kwargs):
@@ -37,21 +37,21 @@ class Builder(object):
                 if kwargs[key]:
                     cls.builders[key] = platform_setter(builder, key)
         return sub_register
-        
+
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger("Builder")
-        
+
         tempfile_options = {}
         if 'tempdir' in kwargs:
             tempfile_options['dir'] = kwargs['tempdir']
-        
+
         self.remote_repo = kwargs.get("repo", "git://github.com/brownan/Minecraft-Overviewer.git")
-        
+
         self.temp_area = tempfile.mkdtemp(prefix="mco_build_temp", **tempfile_options)
         self.logger.debug("making temp_area: %s", self.temp_area)
         self.original_dir = os.getcwd()
         os.chdir(self.temp_area)
-   
+
         self.git = kwargs.get("git", "git")
         self.python = kwargs.get("python", sys.executable)
 
@@ -71,7 +71,7 @@ class Builder(object):
                 os.unlink(path)
             except:
                 print "can't delete ", path
-    
+
     def __del__(self):
         try:
             self.logger.debug("deleting temp_area: %s", self.temp_area)
@@ -95,7 +95,7 @@ class Builder(object):
         os.close(self.stderr_log[0])
         os.close(self.stdout_log[0])
         self.logs_closed = True
-    
+
     # helper for doing commands, and redirecting to our logs
     def popen(self, action, cmd):
         self.logger.info("running command [%s]" % action)
@@ -106,11 +106,11 @@ class Builder(object):
         if p.returncode != 0:
             self.logger.error("Error during [%s]" % action)
             raise Exception()
-        
+
     def fetch(self, checkout=None):
         "Clones a remote repo into a local directory"
 
-        self.popen("clone", [self.git,"clone", self.remote_repo, self.temp_area])        
+        self.popen("clone", [self.git,"clone", self.remote_repo, self.temp_area])
         self.logger.info("Cloned.")
 
         if checkout:
@@ -123,19 +123,19 @@ class Builder(object):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
-    
+
     def getCommit(self):
         cmd = [self.git, "rev-parse", "HEAD"]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
-    
+
     def getVersion(self):
         cmd = [self.python, "setup.py", "--version"]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         p.wait()
         return p.stdout.read().strip()
-    
+
     # called for each phase in self.phases
     def build(self, phase="build"):
         self.popen("build " + phase, [self.python, "setup.py", phase])
@@ -144,20 +144,20 @@ class Builder(object):
     def post_build(self):
         pass
 
-    
+
     # returns the filename on the (eventual) server
     def filename(self):
         raise NotYetImplemented()
-    
+
     # called after all the phases are done, returns a filename to upload
     def package(self):
         raise NotYetImplemented()
-        
+
 @Builder.register(win86_32 = platform.system() == 'Windows' and '32bit' in platform.architecture(),
                   win86_64 = platform.system() == 'Windows' and '64bit' in platform.architecture())
 class WindowsBuilder(Builder):
     phases = ["clean", "build", "py2exe"]
-    
+
     def __init__(self, *args, **kwargs):
         #self.logger = logging.getLogger("Builder.WindowsBuilder")
         kwargs['tempdir'] = "C:\\temp\\"
@@ -171,7 +171,7 @@ class WindowsBuilder(Builder):
         os.environ['PIL_INCLUDE_DIR'] = r"C:\devel\PIL-1.1.7\libImaging"
         os.environ['DISTUTILS_USE_SDK'] = "1"
         os.environ['MSSdk'] = "1"
-        
+
     def findExe(self, exe, path=None):
         if path and type(path) == str:
             path = path.split(os.pathsep)
@@ -187,20 +187,20 @@ class WindowsBuilder(Builder):
 
         if not self.findExe(exe="link.exe"):
             raise Exception("Don't know where link.exe is")
-        
+
         #if not self.findExe(exe="7z.exe"):
         #    os.environ['PATH'] += os.pathsep + self.zipper
         #    raise Exception("Don't know where 7z is")
-        
+
     def filename(self):
         desc = self.getDesc()
         zipname = "%s-%s.zip" % (self.platform, desc)
         return zipname
-    
+
     def package(self):
         zipname = self.filename()
         return self.zip(root="dist", archive=zipname)
-    
+
     def zip(self, root, archive):
         old_cwd = os.getcwd()
         print "old_cwd: ", old_cwd
@@ -238,11 +238,11 @@ class OSXBuilder(Builder):
     def __init__(self, *args, **kwargs):
         Builder.__init__(self, *args, **kwargs)
         os.environ['PIL_INCLUDE_DIR'] = r"/home/agrif/devel/mc-overviewer"
-        
+
     def filename(self):
         desc = self.getDesc()
         return "%s-%s.dmg" % (self.platform, desc)
-    
+
     def package(self):
         dmgname = self.filename()
         self.popen("dmgcreate", ['hdiutil', 'create', dmgname, '-srcfolder', './dist/'])
@@ -252,37 +252,100 @@ class OSXBuilder(Builder):
                   deb86_64 = platform.system() == 'Linux' and ('debian' in platform.dist() or 'Ubuntu' in platform.dist()) and '64bit' in platform.architecture())
 class DebBuilder(Builder):
     phases = ['clean', 'debuild']
-    
+
     def fetch(self, *args, **kwargs):
         ret = Builder.fetch(self, *args, **kwargs)
-        
+
         debsrc = os.path.split(sys.argv[0])[0]
         debsrc = os.path.join(self.original_dir, debsrc, 'debian')
         shutil.copytree(debsrc, 'debian')
-        
+
         clog = open('debian/changelog', 'r').read()
         clog = clog.replace("{VERSION}", self.getVersion())
         clog = clog.replace("{DESC}", self.getDesc())
         clog = clog.replace("{DATE}", time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime()))
         open('debian/changelog', 'w').write(clog)
-        
+
         return ret
-    
+
     def build(self, phase='build'):
         if phase != 'debuild':
             return Builder.build(self, phase)
-        
+
         # run debuild!
         self.popen("debuild", ['debuild', '-i', '-us', '-uc', '-b'])
-        
+
         # move build products into current dir
         for fname in glob.glob("../minecraft-overviewer_%s-0~overviewer1_*" % self.getVersion()):
             newname = os.path.split(fname)[1]
             shutil.move(fname, newname)
-        
+
     def filename(self):
         desc = self.getDesc()
         return "%s-%s.deb" % (self.platform, desc)
-    
+
     def package(self):
         return glob.glob("minecraft-overviewer_%s-0~overviewer1_*.deb" % self.getVersion())[0]
+
+@Builder.register(
+    el6_86_32 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '32bit' in platform.architecture(),
+    el6_86_64 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '64bit' in platform.architecture())
+class EL6Builder(Builder):
+    phases = ['buildsrpm', 'buildrpm']
+    _base = 'el6'
+    _mock_configs = ['epel-6', 'fedora-16']
+
+    def fetch(self, *args, **kwargs):
+        ret = Builder.fetch(self, *args, **kwargs)
+
+        spec = os.path.join(self.original_dir, os.path.split(sys.argv[0])[0],
+            self._base, 'Minecraft-Overviewer.spec')
+        spec = open(spec, 'r').read()
+        spec = spec.replace( '{VERSION}', self.getVersion())
+        open('Minecraft-Overviewer.spec', 'w').write(spec)
+
+        return ret
+
+    def build(self, phase='buildsrpm'):
+        if phase == 'buildsrpm':
+            self.popen('buildsrpm',
+                ['rpmbuild', '-bs', 'Minecraft-Overviewer.spec'])
+        else:
+            srpm = 'Minecraft-Overviewer-%s-1.%s.src.rpm' % (self.getVersion(), 'f16')
+            for platform in self._mock_configs:
+                for arch in ['i386', 'x86_64']:
+                    self._mock('%s-%s' % (platform, arch), srpm)
+
+    def _mock(self, config, srpm):
+        self.popen('mock', ['mock', '-r', config, srpm])
+        return glob.glob('/var/lib/mock/%s/result/*.%s.rpm' %
+            (config, 'x86_64' if platform.architecture() == '64bit' else 'i386'))[0]
+
+    def filename(self):
+        return 'Minecraft-Overviewer-%s-1.%s.%s.rpm' % \
+            (self.getVersion(), distro, arch)
+
+    package = filename
+
+@Builder.register(
+    el5_86_32 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '32bit' in platform.architecture(),
+    el5_86_64 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '64bit' in platform.architecture())
+class EL5Builder(EL6Builder):
+    _base = 'el5'
+    _mock_configs = ['epel-5']
+
+    def build(self, phase='buildsrpm'):
+        if phase == 'buildsrpm':
+            self.popen('buildsrpm',
+                ['rpmbuild', '-bs', '--define', '_source_filedigest_algorithm md5',
+                    'Minecraft-Overviewer.spec'])
+        else:
+            FedoraBuilder.build(self, phase)
