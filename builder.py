@@ -303,6 +303,8 @@ class EL6Builder(Builder):
     def fetch(self, *args, **kwargs):
         ret = Builder.fetch(self, *args, **kwargs)
 
+        self._make_source_tarball()
+
         spec = os.path.join(self.original_dir, os.path.split(sys.argv[0])[0],
             self._base, self._specfile)
         spec = open(spec, 'r').read()
@@ -314,6 +316,20 @@ class EL6Builder(Builder):
     def build(self, phase='build'):
         self._build_srpm()
         self._build_rpm()
+
+    def _make_source_tarball(self):
+        self.popen('tarball',
+            ['cp', '-a', self.temp_area,
+                os.path.join(os.path.dirname(self.temp_dir),
+                    'Minecraft-Overviewer')])
+        self.popen('tarball',
+            ['tar', '-czf', os.path.expanduser(
+                    '~/rpmbuild/SOURCES/Minecraft-Overviewer-%s.tar.gz' % \
+                        self.getVersion()),
+                '-C', os.path.dirname(self.temp_area), 'Minecraft-Overviewer'])
+        shutil.rmtree(
+            os.path.join(os.path.dirname(self.temp_dir),'Minecraft-Overviewer'),
+                onerror=self.forceDeleter)
 
     def _get_arch(self):
         return 'x86_64' if self.platform[-2:] == '64' else 'i386'
