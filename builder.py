@@ -288,17 +288,10 @@ class DebBuilder(Builder):
     def package(self):
         return glob.glob("minecraft-overviewer_%s-0~overviewer1_*.deb" % self.getVersion())[0]
 
-@Builder.register(
-    el6_86_32 = platform.system() == 'Linux' and \
-        'fedora' in platform.dist(),
-    el6_86_64 = platform.system() == 'Linux' and \
-        'fedora' in platform.dist() and \
-        '64bit' in platform.architecture())
-class EL6Builder(Builder):
+class ELBuilderBase(Builder):
     phases = ['build']
-    _specfile = 'Minecraft-Overviewer.spec'
-    _base = 'el6'
-    _mock_config = 'epel-6'
+    _package_name = 'Minecraft-Overviewer'
+    _specfile = '%s.spec' % _package_name
 
     def fetch(self, *args, **kwargs):
         ret = Builder.fetch(self, *args, **kwargs)
@@ -320,15 +313,14 @@ class EL6Builder(Builder):
     def _make_source_tarball(self):
         self.popen('tarball',
             ['cp', '-a', self.temp_area,
-                os.path.join(os.path.dirname(self.temp_area),
-                    'Minecraft-Overviewer')])
+                os.path.join(os.path.dirname(self.temp_area), self._package_name)])
         self.popen('tarball',
             ['tar', '-czf', os.path.expanduser(
-                    '~/rpmbuild/SOURCES/Minecraft-Overviewer-%s.tar.gz' % \
-                        self.getVersion()),
-                '-C', os.path.dirname(self.temp_area), 'Minecraft-Overviewer'])
+                    '~/rpmbuild/SOURCES/%s-%s.tar.gz' % \
+                        (self._package_name, self.getVersion())),
+                '-C', os.path.dirname(self.temp_area), self._package_name])
         shutil.rmtree(
-            os.path.join(os.path.dirname(self.temp_area),'Minecraft-Overviewer'),
+            os.path.join(os.path.dirname(self.temp_area), self._package_name),
                 onerror=self.forceDeleter)
 
     def _get_arch(self):
@@ -343,8 +335,8 @@ class EL6Builder(Builder):
 
     def _get_srpm_name(self):
         return os.path.expanduser(
-            '~/rpmbuild/SRPMS/Minecraft-Overviewer-%s-1.%s.src.rpm' %
-                (self.getVersion(), self._base))
+            '~/rpmbuild/SRPMS/%s-%s-1.%s.src.rpm' %
+                (self._package_name, self.getVersion(), self._base))
 
     def _build_srpm(self):
         self.popen('buildsrpm',
@@ -355,10 +347,25 @@ class EL6Builder(Builder):
             ['mock', '-r', self._get_mock_config(), self._get_srpm_name()])
 
     def filename(self):
-        return 'Minecraft-Overviewer-%s-1.%s.%s.rpm' % \
-            (self.getVersion(), self._base, self._get_arch())
+        return '%s-%s-1.%s.%s.rpm' % \
+            (self._package_name, self.getVersion(), self._base, self._get_arch())
 
-    package = _get_rpm_name
+    def package(self):
+        return self._get_rpm_name()
+
+@Builder.register(
+    el6_86_32 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist(),
+    el6_86_64 = platform.system() == 'Linux' and \
+        'fedora' in platform.dist() and \
+        '64bit' in platform.architecture())
+class EL6Builder(ELBuilderBase):
+    _base = 'el6'
+    _mock_config = 'epel-6'
+
+    def _get_rpm_name(self):
+        return '/var/lib/mock/%s/result/%s' % \
+            (self._get_mock_config(), self.filename().replace('i386', 'i686'))
 
 @Builder.register(
     el5_86_32 = platform.system() == 'Linux' and \
@@ -366,7 +373,7 @@ class EL6Builder(Builder):
     el5_86_64 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
-class EL5Builder(EL6Builder):
+class EL5Builder(ELBuilderBase):
     _base = 'el5'
     _mock_config = 'epel-5'
 
@@ -385,8 +392,3 @@ class EL5Builder(EL6Builder):
 class FedoraBuilder(EL6Builder):
     _base = 'fc16'
     _mock_config = 'fedora-16'
-
-    def _get_rpm_name(self):
-        return '/var/lib/mock/%s/result/%s' % \
-            (self._get_mock_config(), self.filename().replace('i386', 'i686'))
-    package = _get_rpm_name
