@@ -320,7 +320,7 @@ class EL6Builder(Builder):
     def _make_source_tarball(self):
         self.popen('tarball',
             ['cp', '-a', self.temp_area,
-                os.path.join(os.path.dirname(self.temp_dir),
+                os.path.join(os.path.dirname(self.temp_area),
                     'Minecraft-Overviewer')])
         self.popen('tarball',
             ['tar', '-czf', os.path.expanduser(
@@ -328,7 +328,7 @@ class EL6Builder(Builder):
                         self.getVersion()),
                 '-C', os.path.dirname(self.temp_area), 'Minecraft-Overviewer'])
         shutil.rmtree(
-            os.path.join(os.path.dirname(self.temp_dir),'Minecraft-Overviewer'),
+            os.path.join(os.path.dirname(self.temp_area),'Minecraft-Overviewer'),
                 onerror=self.forceDeleter)
 
     def _get_arch(self):
@@ -350,7 +350,7 @@ class EL6Builder(Builder):
         self.popen('buildsrpm',
             ['rpmbuild', '-bs', '--define', 'dist .%s' % self._base, self._specfile])
 
-    def _build_rpm(self, config, srpm):
+    def _build_rpm(self):
         self.popen('mock',
             ['mock', '-r', self._get_mock_config(), self._get_srpm_name()])
 
