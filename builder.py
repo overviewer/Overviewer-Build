@@ -385,3 +385,7 @@ class EL5Builder(EL6Builder):
 class FedoraBuilder(EL6Builder):
     _base = 'f16'
     _mock_config = 'fedora-16'
+
+    def _get_rpm_name(self):
+        return '/var/lib/mock/%s/result/%s' % \
+            (self._get_mock_config(), self.filename().replace('i386', 'i686'))
