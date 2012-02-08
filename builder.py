@@ -36,6 +36,7 @@ class Builder(object):
                     return sub_constructor
                 if kwargs[key]:
                     cls.builders[key] = platform_setter(builder, key)
+            return builder
         return sub_register
 
     def __init__(self, *args, **kwargs):
@@ -289,8 +290,7 @@ class DebBuilder(Builder):
 
 @Builder.register(
     el6_86_32 = platform.system() == 'Linux' and \
-        'fedora' in platform.dist() and \
-        '32bit' in platform.architecture(),
+        'fedora' in platform.dist(),
     el6_86_64 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
@@ -362,8 +362,7 @@ class EL6Builder(Builder):
 
 @Builder.register(
     el5_86_32 = platform.system() == 'Linux' and \
-        'fedora' in platform.dist() and \
-        '32bit' in platform.architecture(),
+        'fedora' in platform.dist(),
     el5_86_64 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
@@ -379,8 +378,7 @@ class EL5Builder(EL6Builder):
 
 @Builder.register(
     fedora_86_32 = platform.system() == 'Linux' and \
-        'fedora' in platform.dist() and \
-        '32bit' in platform.architecture(),
+        'fedora' in platform.dist(),
     fedora_86_64 = platform.system() == 'Linux' and \
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
