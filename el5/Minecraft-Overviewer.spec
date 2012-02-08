@@ -10,7 +10,7 @@ Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Vendor: Andrew Brown <brownan@gmail.com>
 Url: http://overviewer.org/
-Requires: python26, python26-imaging
+Requires: python26, python26-imaging, python26-numpy
 BuildRequires: python26-devel, python26-imaging-devel, python26-numpy, python26-numpy-devel
 
 %description
