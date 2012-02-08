@@ -389,3 +389,4 @@ class FedoraBuilder(EL6Builder):
     def _get_rpm_name(self):
         return '/var/lib/mock/%s/result/%s' % \
             (self._get_mock_config(), self.filename().replace('i386', 'i686'))
+    package = _get_rpm_name
