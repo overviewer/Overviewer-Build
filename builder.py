@@ -383,5 +383,5 @@ class EL5Builder(EL6Builder):
         'fedora' in platform.dist() and \
         '64bit' in platform.architecture())
 class FedoraBuilder(EL6Builder):
-    _base = 'f16'
+    _base = 'fc16'
     _mock_config = 'fedora-16'
