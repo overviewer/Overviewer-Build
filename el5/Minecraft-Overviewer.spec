@@ -1,3 +1,5 @@
+%define python_sitearch %{_libdir}/python2.6/site-packages
+
 Summary: Generates large resolution images of a Minecraft map.
 Name: Minecraft-Overviewer
 Version: {VERSION}
