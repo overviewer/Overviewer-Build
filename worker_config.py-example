@@ -1,0 +1,8 @@
+#sssh it's a secret
+secret_key = 'no u'
+
+#list of host:port for gearman hosts to try connecting to
+gearman_hosts = ['192.168.1.4:9092', 'em32.net:9092']
+
+#no idea what this really does
+package_hook_url = 'http://overviewer.org/hooks/package'
