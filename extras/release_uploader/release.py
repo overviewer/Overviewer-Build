@@ -26,6 +26,12 @@ TARGETS = {
     'win64' : 'build_win86_64',
     'deb32' : 'build_deb86_32',
     'deb64' : 'build_deb86_64',
+    'el5_32' : 'build_el5_86_32',
+    'el5_64' : 'build_el5_86_64',
+    'el6_32' : 'build_el6_86_32',
+    'el6_64' : 'build_el6_86_64',
+    'fedora_32' : 'build_fedora_86_32',
+    'fedora_64' : 'build_fedora_86_64',
 }
 
 class Uploader(object):
@@ -64,7 +70,33 @@ class DebianUploader(Uploader):
             os.system("make -C %s" % (self.repository,))
         self.used = False
 
-UPLOADERS = [GithubUploader(), DebianUploader()]
+class RPMUploader(Uploader):
+    repository = "/var/www/org/overviewer/htdocs/rpms"
+    packages = "/var/www/org/overviewer/htdocs/rpms/{system}/{arch}/packages"
+    system_map = {'el5' : '5', 'el6' : '6', 'fedora' : '16'}
+    arch_map = {'32' : 'i386', '64' : 'x86_64'}
+    def __init__(self):
+        self.used = False
+    def handles_target(self, target, repo, branch):
+        if not repo == 'overviewer':
+            return False
+        handle_prefixes = ['el5', 'el6', 'fedora']
+        return any(map(lambda p: target.startswith(p), handle_prefixes))
+    def handle(self, path, info):
+        self.used = True
+        arch = info['target'].split('_', 1)[1]
+        arch = self.arch_map[arch]
+        system = info['target'].split('_', 1)[0]
+        system = self.system_map[system]
+        package_dir = self.packages.format(system=system, arch=arch)
+        
+        shutil.copy(path, package_dir)
+    def finalize(self):
+        if self.used:
+            os.system("make -C %s" % (self.repository,))
+        self.used = False
+
+UPLOADERS = [GithubUploader(), DebianUploader(), RPMUploader()]
 
 # callback takes success, url, stdout, stderr as arguments
 # function returns True on successful submission, False on error
@@ -105,7 +137,7 @@ def submit_job(gm_client, gm_lock, target, repo, branch, callback):
                     except Exception:
                         callback(False, None, None, None)
                         return
-                elif time.time() > self.submitted + 120 and not self.job.status['running']:
+                elif time.time() > self.submitted + 1800 and not self.job.status['running']:
                     # stale job
                     callback(False, None, None, None)
                     return
