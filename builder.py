@@ -47,7 +47,7 @@ class Builder(object):
             tempfile_options['dir'] = kwargs['tempdir']
 
         self.remote_repo = kwargs.get("repo", "git://github.com/brownan/Minecraft-Overviewer.git")
-
+        self.logger.debug('using remote repo: %s', self.remote_repo)
         self.temp_area = tempfile.mkdtemp(prefix="mco_build_temp", **tempfile_options)
         self.logger.debug("making temp_area: %s", self.temp_area)
         self.original_dir = os.getcwd()
@@ -55,6 +55,7 @@ class Builder(object):
 
         self.git = kwargs.get("git", "git")
         self.python = kwargs.get("python", sys.executable)
+        self.logger.debug('using git (%s) and python (%s)', self.git, self.python)
 
         self.stderr_log = tempfile.mkstemp(prefix="mco_log_", **tempfile_options)
         self.stdout_log = tempfile.mkstemp(prefix="mco_log_", **tempfile_options)
@@ -66,12 +67,12 @@ class Builder(object):
             try:
                 shutil.rmtree(path)
             except:
-                print "can't delete ", path
+                self.logger.warn('Can\'t delete path: %s', path)
         elif os.path.isfile(path):
             try:
                 os.unlink(path)
             except:
-                print "can't delete ", path
+                self.logger.warn('Can\'t delete path: %s', path)
 
     def __del__(self):
         try:
@@ -82,13 +83,12 @@ class Builder(object):
             os.remove(self.stderr_log[1])
             os.remove(self.stdout_log[1])
         except:
-            print "Failed to delete temp-area:"
-            traceback.print_exc()
+            self.logger.exception('Failed to delete temp area')
             time.sleep(4)
             try:
                 shutil.rmtree(self.temp_area)
             except:
-                print "Failed again!!!"
+                self.logger.error('Failed to delete temp area again')
 
     def close_logs(self):
         if self.logs_closed:
@@ -112,7 +112,7 @@ class Builder(object):
         "Clones a remote repo into a local directory"
 
         self.popen("clone", [self.git,"clone", self.remote_repo, self.temp_area])
-        self.logger.info("Cloned.")
+        self.logger.info("Cloned %s into %s", self.remote_repo, self.temp_area)
 
         if checkout:
             self.popen("checkout", [self.git, "checkout", checkout])
@@ -204,12 +204,12 @@ class WindowsBuilder(Builder):
 
     def zip(self, root, archive):
         old_cwd = os.getcwd()
-        print "old_cwd: ", old_cwd
+        self.logger.debug('old_cwd: %s', old_cwd)
         os.chdir(root)
         try:
             self.popen("zip", [self.zipper, "a", archive, "."])
             if not os.path.exists(archive):
-                print "something went wrong, the archive dosn'et exist"
+                self.logger.error("something went wrong, the archive doesn't exist")
                 raise Exception("something went wrong.  the archive doesn't exist")
         finally:
             os.chdir(old_cwd)
@@ -220,15 +220,15 @@ class WindowsBuilder(Builder):
         doc_src="docs"
         doc_dest="dist\\docs"
         cmd = [self.python, r"c:\devel\Sphinx-1.0.8\sphinx-build.py", "-b", "html", doc_src, doc_dest]
-        print "building docs with %r" % cmd
-        print "cwd: %r" % os.getcwd()
+        self.logger.info('building docs with: %r', cmd)
+        self.logger.debug('cwd: %s', os.getcwd())
         p = subprocess.Popen(cmd)
         p.wait()
         if (p.returncode != 0):
-            print "Failed to build docs"
+            self.logger.error("Failed to build docs")
             raise Exception("Failed to build docs")
         else:
-            print "docs OK"
+            self.logger.info('docs built OK')
 
 class LinuxBuilder(Builder):
     pass

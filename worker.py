@@ -76,7 +76,7 @@ def uploadLogs(b, result):
     result['build_log_stdout'] = upload.upload(out_log, b.stdout_log[1])
 
 def build(worker, job):
-    logger.info('got a job!')
+    logger.info('Received job!')
     result = dict(status=None)
 
     if len(job.data) < 33:
@@ -126,6 +126,8 @@ def build(worker, job):
     b = builder.Builder.builders[platform](**defaults)
     num_phases = len(b.phases)
     worker.send_job_status(job, 1, 4 + num_phases)
+
+    logger.info('Job is for %s with %d phases', platform, num_phases)
 
     try:
         if 'checkout' in defaults:
@@ -193,15 +195,17 @@ def build(worker, job):
         return signAndPickle(result)
 
 if __name__ == "__main__":
+    import uuid
+
     if not builder.Builder.builders:
         logger.error('No supported builders found, exiting')
         sys.exit(1)
 
-    this_plat = builder.Builder.builders.keys()[0]
-    logger.info('Identifying as %s_worker', this_plat)
-    gm_worker.set_client_id("%s_worker" % this_plat)
+    client_id = uuid.uuid1()
+    logger.info('Worker identified as: %s', client_id)
+    gm_worker.set_client_id(client_id)
     for platform in builder.Builder.builders:
-        logger.info('Register builder: %s' % platform)
+        logger.info('Registering builder: %s' % platform)
         gm_worker.register_task("build_%s" % platform, build)
 
     while(1):
