@@ -215,5 +215,8 @@ if __name__ == "__main__":
         except gearman.errors.ServerUnavailable:
             logger.warning('Server disconnected. Trying again')
             time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info('Exiting...')
+            break
 
     sys.exit(0)
