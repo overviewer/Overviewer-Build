@@ -201,7 +201,7 @@ if __name__ == "__main__":
         logger.error('No supported builders found, exiting')
         sys.exit(1)
 
-    client_id = uuid.uuid1()
+    client_id = str(uuid.uuid1())
     logger.info('Worker identified as: %s', client_id)
     gm_worker.set_client_id(client_id)
     for platform in builder.Builder.builders:
