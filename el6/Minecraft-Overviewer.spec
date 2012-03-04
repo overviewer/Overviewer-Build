@@ -34,4 +34,4 @@ rm -rf %{buildroot}
 %{python_sitearch}/Minecraft_Overviewer-*-*.egg-info
 %{python_sitearch}/overviewer_core
 %{_bindir}/overviewer.py
-%doc README.rst COPYING.txt sample.settings.py
+%doc README.rst COPYING.txt sample_config.py
